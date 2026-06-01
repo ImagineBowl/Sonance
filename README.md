@@ -23,7 +23,7 @@ A native iOS instrument tuner built with SwiftUI. Sonance listens through the mi
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/FreeFarmers/Sonance.git
+   git clone https://github.com/ImagineBowl/Sonance.git
    cd Sonance
    ```
 2. Open `Sonance.xcodeproj` in Xcode.
