@@ -6,9 +6,13 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct TunerView: View {
     @ObservedObject var audioAnalyzer: AudioAnalyzer
+    @Environment(\.openURL) private var openURL
     
     private var detectedNote: DetectedNote {
         audioAnalyzer.detectedNote
@@ -40,6 +44,32 @@ struct TunerView: View {
         } else {
             return "Flat"
         }
+    }
+
+    private var tuningColorBucket: Int {
+        guard detectedNote.isDetected else { return 0 }
+        let absOffset = abs(detectedNote.offset)
+        if absOffset > TunerConfig.closeThreshold { return 3 }
+        if absOffset > TunerConfig.inTuneThreshold { return 2 }
+        return 1
+    }
+
+    private var noteAccessibilityLabel: String {
+        if detectedNote.isDetected {
+            return "\(detectedNote.displayName), \(tuningStatus), \(String(format: "%.1f", abs(detectedNote.offset))) cents"
+        }
+        return audioAnalyzer.isRunning ? "Listening for pitch" : "Tap start to begin tuning"
+    }
+
+    private var gaugeAccessibilityValue: String {
+        guard detectedNote.isDetected else {
+            return audioAnalyzer.isRunning ? "Listening" : "No pitch detected"
+        }
+        if abs(detectedNote.offset) <= TunerConfig.inTuneThreshold {
+            return "In tune"
+        }
+        let direction = detectedNote.offset > 0 ? "sharp" : "flat"
+        return "\(direction) by \(String(format: "%.1f", abs(detectedNote.offset))) cents"
     }
     
     var body: some View {
@@ -79,12 +109,11 @@ struct TunerView: View {
                 }
             }
         }
-        .background(tuningColor.animation(.easeInOut(duration: 0.3)))
-        .onAppear {
+        .background(tuningColor)
+        .animation(.easeInOut(duration: 0.3), value: tuningColorBucket)
+        .task {
             audioAnalyzer.start()
-        }
-        .onDisappear {
-            audioAnalyzer.stop()
+            defer { audioAnalyzer.stop() }
         }
         .ignoresSafeArea()
 
@@ -97,18 +126,31 @@ struct TunerView: View {
             Image(systemName: "mic.slash.fill")
                 .font(.system(size: 60))
                 .foregroundStyle(Color.white.opacity(0.7))
-            
+                .accessibilityHidden(true)
+
             Text("Microphone Access Required")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.white)
-            
+
             Text("Please enable microphone access in Settings to use the tuner.")
                 .font(.system(size: 16, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.8))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
+
+            Button("Open Settings") {
+                openAppSettings()
+            }
+            .font(.system(size: 17, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color.gray.opacity(0.8))
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color.white)
+            .clipShape(Capsule())
+            .accessibilityHint("Opens Settings so you can enable microphone access")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
     }
     
     private var noteDisplayView: some View {
@@ -138,6 +180,8 @@ struct TunerView: View {
                     .foregroundStyle(Color.white.opacity(0.6))
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(noteAccessibilityLabel)
     }
     
     private func tunerGaugeView(geometry: GeometryProxy) -> some View {
@@ -188,6 +232,9 @@ struct TunerView: View {
                     .offset(y: -geometry.size.width * 0.16)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Tuning gauge")
+        .accessibilityValue(gaugeAccessibilityValue)
     }
     
     private var centsDisplayView: some View {
@@ -274,6 +321,8 @@ struct TunerView: View {
                     .foregroundStyle(Color.white.opacity(0.65))
             }
             .tint(Color.white)
+            .accessibilityIdentifier("inputSensitivitySlider")
+            .accessibilityValue("\(Int(audioAnalyzer.inputSensitivity * 100)) percent")
         }
         .padding(14)
         .background(Color.black.opacity(0.18))
@@ -300,6 +349,15 @@ struct TunerView: View {
             .clipShape(Capsule())
             .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
         }
+        .accessibilityLabel(audioAnalyzer.isRunning ? "Stop tuning" : "Start tuning")
+        .accessibilityIdentifier("tunerControlButton")
+    }
+
+    private func openAppSettings() {
+        #if canImport(UIKit)
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
+        #endif
     }
 }
 

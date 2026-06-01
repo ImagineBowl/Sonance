@@ -7,6 +7,7 @@
 
 import AVFoundation
 import Accelerate
+import os
 
 /// Detected note information including note name, octave, and cent offset
 struct DetectedNote: Equatable {
@@ -28,6 +29,7 @@ struct DetectedNote: Equatable {
 
 /// Audio analyzer that detects pitch from microphone input using FFT
 class AudioAnalyzer: ObservableObject {
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Sonance", category: "AudioAnalyzer")
     private var audioEngine: AVAudioEngine?
     private var inputNode: AVAudioInputNode?
     private var fftSetup: FFTSetup?
@@ -166,7 +168,7 @@ class AudioAnalyzer: ObservableObject {
                 self.isRunning = true
             }
         } catch {
-            print("Error starting audio engine: \(error)")
+            Self.logger.error("Error starting audio engine: \(error.localizedDescription)")
         }
     }
     

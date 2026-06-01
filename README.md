@@ -16,7 +16,7 @@ A native iOS instrument tuner built with SwiftUI. Sonance listens through the mi
 ## Requirements
 
 - Xcode 16.2+
-- iOS 18.2+
+- iOS 17.0+
 - iPhone or iPad with a microphone
 
 ## Getting Started

@@ -15,6 +15,10 @@
 		5D9A216A2D956B11000F0EC2 /* TunerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D9A21692D956B11000F0EC2 /* TunerView.swift */; };
 		5D9A21822D95B2C5000F0EC2 /* BVCustomTunerNeedleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D9A21812D95B2C5000F0EC2 /* BVCustomTunerNeedleView.swift */; };
 		5D9A21842D96B428000F0EC2 /* ArcShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D9A21832D96B428000F0EC2 /* ArcShape.swift */; };
+		5DF1A0012F00000100000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5DF1A0002F00000100000001 /* PrivacyInfo.xcprivacy */; };
+		5DF1A0032F00000200000002 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5DF1A0022F00000200000002 /* LaunchScreen.storyboard */; };
+		5DF1A0052F00000300000003 /* LaunchScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0042F00000300000003 /* LaunchScreenView.swift */; };
+		5DF1A0072F00000400000004 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0062F00000400000004 /* RootView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +31,10 @@
 		5D9A21692D956B11000F0EC2 /* TunerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerView.swift; sourceTree = "<group>"; };
 		5D9A21812D95B2C5000F0EC2 /* BVCustomTunerNeedleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BVCustomTunerNeedleView.swift; sourceTree = "<group>"; };
 		5D9A21832D96B428000F0EC2 /* ArcShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcShape.swift; sourceTree = "<group>"; };
+		5DF1A0002F00000100000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		5DF1A0022F00000200000002 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		5DF1A0042F00000300000003 /* LaunchScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchScreenView.swift; sourceTree = "<group>"; };
+		5DF1A0062F00000400000004 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,9 +69,11 @@
 			children = (
 				5D9A21652D956A53000F0EC2 /* Utils */,
 				5D9A21562D9568BA000F0EC2 /* SonanceApp.swift */,
+				5DF1A0022F00000200000002 /* LaunchScreen.storyboard */,
 				5D9A21682D956AF3000F0EC2 /* Views */,
 				5D9A215A2D9568BB000F0EC2 /* Assets.xcassets */,
 				5D9A215D2D9568BB000F0EC2 /* Preview Assets.xcassets */,
+				5DF1A0002F00000100000001 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Sonance;
 			sourceTree = "<group>";
@@ -80,6 +90,8 @@
 		5D9A21682D956AF3000F0EC2 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				5DF1A0062F00000400000004 /* RootView.swift */,
+				5DF1A0042F00000300000003 /* LaunchScreenView.swift */,
 				5D9A21692D956B11000F0EC2 /* TunerView.swift */,
 				5D9A21832D96B428000F0EC2 /* ArcShape.swift */,
 				5D9A21812D95B2C5000F0EC2 /* BVCustomTunerNeedleView.swift */,
@@ -150,6 +162,8 @@
 			files = (
 				5D9A215E2D9568BB000F0EC2 /* Preview Assets.xcassets in Resources */,
 				5D9A215B2D9568BB000F0EC2 /* Assets.xcassets in Resources */,
+				5DF1A0012F00000100000001 /* PrivacyInfo.xcprivacy in Resources */,
+				5DF1A0032F00000200000002 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -166,6 +180,8 @@
 				5D9A21572D9568BA000F0EC2 /* SonanceApp.swift in Sources */,
 				5D9A21822D95B2C5000F0EC2 /* BVCustomTunerNeedleView.swift in Sources */,
 				5D9A216A2D956B11000F0EC2 /* TunerView.swift in Sources */,
+				5DF1A0052F00000300000003 /* LaunchScreenView.swift in Sources */,
+				5DF1A0072F00000400000004 /* RootView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -225,7 +241,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -284,7 +300,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -302,13 +318,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"/Users/ahsansmac/Documents/BitsVessels Projects/Sonance/Sonance/\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Sonance\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need Mic Access to capture sound of instrument ";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -331,13 +348,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"/Users/ahsansmac/Documents/BitsVessels Projects/Sonance/Sonance/\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Sonance\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need Mic Access to capture sound of instrument ";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (

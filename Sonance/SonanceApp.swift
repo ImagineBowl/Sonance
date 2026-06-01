@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct SonanceApp: App {
+    @StateObject private var audioAnalyzer = AudioAnalyzer()
+
     var body: some Scene {
         WindowGroup {
-            TunerView(audioAnalyzer: AudioAnalyzer())
+            RootView(audioAnalyzer: audioAnalyzer)
         }
     }
 }
