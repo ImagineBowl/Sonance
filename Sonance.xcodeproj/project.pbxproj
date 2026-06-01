@@ -321,6 +321,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Sonance\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Sonance;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -351,6 +352,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Sonance\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Sonance;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
