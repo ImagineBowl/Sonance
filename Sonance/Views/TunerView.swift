@@ -111,9 +111,11 @@ struct TunerView: View {
         }
         .background(tuningColor)
         .animation(.easeInOut(duration: 0.3), value: tuningColorBucket)
-        .task {
+        .onAppear {
             audioAnalyzer.start()
-            defer { audioAnalyzer.stop() }
+        }
+        .onDisappear {
+            audioAnalyzer.stop()
         }
         .ignoresSafeArea()
 
