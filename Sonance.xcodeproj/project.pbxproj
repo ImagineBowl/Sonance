@@ -19,6 +19,10 @@
 		5DF1A0032F00000200000002 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5DF1A0022F00000200000002 /* LaunchScreen.storyboard */; };
 		5DF1A0052F00000300000003 /* LaunchScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0042F00000300000003 /* LaunchScreenView.swift */; };
 		5DF1A0072F00000400000004 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0062F00000400000004 /* RootView.swift */; };
+		5DF1A0092F00000500000005 /* TuningPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0082F00000500000005 /* TuningPresentation.swift */; };
+		5DF1A00B2F00000600000006 /* TunerView+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A00A2F00000600000006 /* TunerView+Presentation.swift */; };
+		5DF1A00D2F00000700000007 /* TunerView+Subviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A00C2F00000700000007 /* TunerView+Subviews.swift */; };
+		5DF1A00F2F00000800000008 /* TunerLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A00E2F00000800000008 /* TunerLayout.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +39,10 @@
 		5DF1A0022F00000200000002 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		5DF1A0042F00000300000003 /* LaunchScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchScreenView.swift; sourceTree = "<group>"; };
 		5DF1A0062F00000400000004 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		5DF1A0082F00000500000005 /* TuningPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuningPresentation.swift; sourceTree = "<group>"; };
+		5DF1A00A2F00000600000006 /* TunerView+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunerView+Presentation.swift"; sourceTree = "<group>"; };
+		5DF1A00C2F00000700000007 /* TunerView+Subviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunerView+Subviews.swift"; sourceTree = "<group>"; };
+		5DF1A00E2F00000800000008 /* TunerLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerLayout.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -93,6 +101,10 @@
 				5DF1A0062F00000400000004 /* RootView.swift */,
 				5DF1A0042F00000300000003 /* LaunchScreenView.swift */,
 				5D9A21692D956B11000F0EC2 /* TunerView.swift */,
+				5DF1A00A2F00000600000006 /* TunerView+Presentation.swift */,
+				5DF1A00C2F00000700000007 /* TunerView+Subviews.swift */,
+				5DF1A0082F00000500000005 /* TuningPresentation.swift */,
+				5DF1A00E2F00000800000008 /* TunerLayout.swift */,
 				5D9A21832D96B428000F0EC2 /* ArcShape.swift */,
 				5D9A21812D95B2C5000F0EC2 /* BVCustomTunerNeedleView.swift */,
 			);
@@ -182,6 +194,10 @@
 				5D9A216A2D956B11000F0EC2 /* TunerView.swift in Sources */,
 				5DF1A0052F00000300000003 /* LaunchScreenView.swift in Sources */,
 				5DF1A0072F00000400000004 /* RootView.swift in Sources */,
+				5DF1A0092F00000500000005 /* TuningPresentation.swift in Sources */,
+				5DF1A00B2F00000600000006 /* TunerView+Presentation.swift in Sources */,
+				5DF1A00D2F00000700000007 /* TunerView+Subviews.swift in Sources */,
+				5DF1A00F2F00000800000008 /* TunerLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -327,8 +343,9 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -358,8 +375,9 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

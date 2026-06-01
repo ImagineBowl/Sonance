@@ -43,6 +43,7 @@ class AudioAnalyzer: ObservableObject {
     private var lastUIUpdateTime: TimeInterval = 0
     private var pendingAmplitude: Float = 0
     private var pendingFrequency: Double = 0
+    private var isTapInstalled = false
     
     @Published var frequency: Double = 0.0
     @Published var isRunning: Bool = false
@@ -99,14 +100,14 @@ class AudioAnalyzer: ObservableObject {
         case .authorized:
             DispatchQueue.main.async {
                 self.permissionGranted = true
+                self.start()
             }
-            setupAudioEngine()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                 DispatchQueue.main.async {
                     self?.permissionGranted = granted
                     if granted {
-                        self?.setupAudioEngine()
+                        self?.start()
                     }
                 }
             }
@@ -123,7 +124,7 @@ class AudioAnalyzer: ObservableObject {
             DispatchQueue.main.async {
                 self?.permissionGranted = granted
                 if granted {
-                    self?.setupAudioEngine()
+                    self?.start()
                 }
             }
         }
@@ -132,43 +133,76 @@ class AudioAnalyzer: ObservableObject {
     
     // MARK: - Audio Engine Setup
     
-    private func setupAudioEngine() {
-        audioEngine = AVAudioEngine()
-        guard let audioEngine = audioEngine else { return }
+    private func prepareAudioEngine() throws {
+        if audioEngine == nil {
+            audioEngine = AVAudioEngine()
+        }
+        
+        guard let audioEngine else { return }
         
         inputNode = audioEngine.inputNode
-        guard let inputNode = inputNode else { return }
+        guard let inputNode else { return }
         
-        let format = inputNode.outputFormat(forBus: 0)
-        
-        // Pre-calculate FFT parameters
         log2n = vDSP_Length(round(log2(Double(TunerConfig.bufferSize))))
         bufferSizePOT = Int(pow(2, Double(log2n)))
         
-        // Create FFT setup once and reuse
-        fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
+        if fftSetup == nil {
+            fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
+        }
         
-        inputNode.installTap(onBus: 0, bufferSize: TunerConfig.bufferSize, format: format) { [weak self] (buffer, time) in
+        guard !isTapInstalled else { return }
+        
+        let format = inputNode.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            throw AudioEngineError.invalidInputFormat
+        }
+        
+        inputNode.installTap(onBus: 0, bufferSize: TunerConfig.bufferSize, format: format) { [weak self] buffer, _ in
             self?.processAudioBuffer(buffer: buffer)
         }
+        isTapInstalled = true
+    }
+    
+    private func tearDownAudioEngine() {
+        if isTapInstalled {
+            inputNode?.removeTap(onBus: 0)
+            isTapInstalled = false
+        }
+        audioEngine?.stop()
+        audioEngine = nil
+        inputNode = nil
+    }
+    
+    private enum AudioEngineError: Error {
+        case invalidInputFormat
     }
     
     // MARK: - Public Control Methods
     
     /// Start the audio analysis
     func start() {
-        guard permissionGranted, let audioEngine = audioEngine, !isRunning else { return }
+        guard permissionGranted, !isRunning else { return }
         
         do {
             #if os(iOS)
             try configureAudioSession()
             #endif
+            
+            if audioEngine == nil || !isTapInstalled {
+                tearDownAudioEngine()
+                try prepareAudioEngine()
+            }
+            
+            guard let audioEngine else { return }
+            
+            audioEngine.prepare()
             try audioEngine.start()
             DispatchQueue.main.async {
                 self.isRunning = true
             }
         } catch {
             Self.logger.error("Error starting audio engine: \(error.localizedDescription)")
+            tearDownAudioEngine()
         }
     }
     
@@ -193,7 +227,10 @@ class AudioAnalyzer: ObservableObject {
     
     deinit {
         stop()
-        inputNode?.removeTap(onBus: 0)
+        if isTapInstalled {
+            inputNode?.removeTap(onBus: 0)
+            isTapInstalled = false
+        }
         if let fftSetup = fftSetup {
             vDSP_destroy_fftsetup(fftSetup)
         }
