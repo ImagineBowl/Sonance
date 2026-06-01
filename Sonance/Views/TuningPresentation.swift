@@ -43,9 +43,9 @@ struct TuningPresentation {
         case .inTune:
             return Color.accentColor
         case .close:
-            return .snOrange
+            return Color("SnOrange")
         case .outOfTune:
-            return .snRED
+            return Color("SnRED")
         }
     }
 
