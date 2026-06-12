@@ -5,10 +5,14 @@ platform :ios do
   lane :beta do
     setup_ci if ENV["CI"]
 
+    ci_keychain_path = if ENV["CI"]
+      File.expand_path("~/Library/Keychains/#{ENV['MATCH_KEYCHAIN_NAME']}-db")
+    end
+
     if ENV["CI"]
       sh("curl -sfO https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer")
       sh(
-        "security import AppleWWDRCAG3.cer -k #{ENV['KEYCHAIN_PATH']} -P #{ENV['MATCH_PASSWORD']} -T /usr/bin/codesign -T /usr/bin/security",
+        "security import AppleWWDRCAG3.cer -k '#{ci_keychain_path}' -P '#{ENV['MATCH_PASSWORD']}' -T /usr/bin/codesign -T /usr/bin/security || true",
         log: false
       )
     end
@@ -28,7 +32,7 @@ platform :ios do
 
     cert(
       api_key: api_key,
-      keychain_path: ENV["KEYCHAIN_PATH"],
+      keychain_path: ci_keychain_path,
       keychain_password: ENV["MATCH_PASSWORD"],
       skip_set_partition_list: true
     )
