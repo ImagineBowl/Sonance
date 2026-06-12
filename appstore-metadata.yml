@@ -1,0 +1,52 @@
+app_store_metadata:
+  bundle_id: com.ImagineBowl.Sonance
+  version: "1.0"
+  build: "1"
+  min_ios_version: "17.0"
+
+  name: Sonance
+  subtitle: Chromatic instrument tuner
+  primary_category: Music
+  secondary_category: Utilities
+  copyright: "© 2026 ImagineBowl"
+
+  keywords: "tuner,pitch,guitar,chromatic,music,instrument,hz,cents,violin,ukulele,bass,tuning"
+
+  description: |
+    Sonance is a fast, accurate chromatic tuner for musicians. Point your iPhone or iPad at your instrument and get instant feedback — note name, octave, cent offset, and frequency — on a clear animated gauge.
+
+    Features
+    • Real-time chromatic tuning (A440 reference)
+    • Note + octave display (e.g. A4)
+    • Cent offset and Hz readout
+    • Color-coded feedback: in tune, close, or out of tune
+    • Adjustable input sensitivity for quiet or loud environments
+    • On-device processing — your audio never leaves your device
+
+    Works with guitar, bass, violin, ukulele, and other pitched instruments.
+
+    Microphone access is required for pitch detection.
+
+  whats_new: |
+    Initial release.
+
+  privacy_policy_url: ""
+  support_url: ""
+  marketing_url: ""
+
+  review_contact:
+    first_name: ""
+    last_name: ""
+    email: ""
+    phone: ""
+
+  review_notes: |
+    Sonance is a chromatic instrument tuner. It requires microphone access to detect pitch from the device microphone. All audio processing happens on-device; nothing is recorded or uploaded.
+
+    How to test: Use a physical iPhone or iPad (simulator mic is unreliable). Grant microphone permission on launch, tap Start, and play a note near the device — e.g. pluck a guitar string or use an online tone generator. The note name, cent offset, and needle should update in real time.
+
+    No login or network connection is required.
+
+  screenshots:
+    iphone_6_9: []
+    ipad_13: []
