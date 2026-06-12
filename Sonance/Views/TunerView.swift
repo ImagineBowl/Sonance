@@ -64,6 +64,10 @@ struct TunerView: View {
                         
                         // Frequency display
                         frequencyDisplayView
+
+                        instrumentModeView
+                            .padding(.horizontal, 32)
+                            .padding(.top, 8)
                         
                         Spacer()
                         
@@ -120,9 +124,17 @@ struct TunerView: View {
                 .foregroundStyle(Color.white)
                 
                 // Tuning status
-                Text(tuningStatus)
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.9))
+                VStack(spacing: 4) {
+                    Text(tuningStatus)
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.9))
+
+                    if audioAnalyzer.isNoteLocked {
+                        Label("Note locked", systemImage: "lock.fill")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.75))
+                    }
+                }
             } else {
                 // Empty state
                 Text("♪")
@@ -219,6 +231,31 @@ struct TunerView: View {
         }
     }
     
+    private var instrumentModeView: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Instrument", systemImage: "guitars")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.9))
+
+            Picker("Instrument", selection: $audioAnalyzer.instrumentMode) {
+                ForEach(InstrumentMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("instrumentModePicker")
+
+            if audioAnalyzer.instrumentMode == .bass {
+                Text("Extended low range for bass guitar. Pluck near the mic.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.65))
+            }
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.18))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
     private var controlButtonView: some View {
         Button(action: {
             if audioAnalyzer.isRunning {
