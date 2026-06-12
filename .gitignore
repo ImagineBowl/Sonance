@@ -1,0 +1,23 @@
+# Xcode
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+
+# Build artifacts
+build/
+*.ipa
+*.dSYM.zip
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Ruby
+vendor/bundle
+.bundle
+
+# App Store Connect API keys — never commit
+*.p8
+AuthKey_*.p8
