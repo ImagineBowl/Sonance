@@ -25,7 +25,7 @@ enum TunerLayout {
     static var isPad: Bool { false }
     #endif
 
-    static var noteTopPadding: CGFloat { isPad ? 72 : 0 }
+    static var noteTopPadding: CGFloat { isPad ? 72 : 50 }
     static var noteBottomPadding: CGFloat { isPad ? 96 : 50 }
     static var contentSpacing: CGFloat { isPad ? 28 : 16 }
 

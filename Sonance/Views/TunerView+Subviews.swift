@@ -20,7 +20,7 @@ extension TunerView {
                 containerHeight: geometry.size.height
             )
 
-            VStack(spacing: TunerLayout.contentSpacing) {
+            VStack {
                 Spacer()
 
                 noteDisplayView
