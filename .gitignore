@@ -21,3 +21,8 @@ vendor/bundle
 # App Store Connect API keys — never commit
 *.p8
 AuthKey_*.p8
+*.p12
+*.cer
+*.mobileprovision
+ci_certificate.p12
+ci_profile.mobileprovision

@@ -30,13 +30,30 @@ platform :ios do
       xcodeproj: "Sonance.xcodeproj"
     )
 
-    cert(
-      api_key: api_key,
-      keychain_path: ci_keychain_path,
-      keychain_password: ENV["MATCH_PASSWORD"],
-      skip_set_partition_list: true,
-      force: false
-    )
+    profile_name = nil
+
+    if ENV["CI"]
+      profile_name = import_ci_signing(
+        keychain_path: ci_keychain_path,
+        keychain_password: ENV["MATCH_PASSWORD"]
+      )
+    else
+      cert(
+        api_key: api_key,
+        keychain_path: ci_keychain_path,
+        keychain_password: ENV["MATCH_PASSWORD"],
+        skip_set_partition_list: true,
+        force: false
+      )
+
+      sigh(
+        api_key: api_key,
+        app_identifier: "com.ImagineBowl.Sonance",
+        force: false
+      )
+
+      profile_name = ENV["SIGH_NAME"]
+    end
 
     if ENV["CI"]
       sh(
@@ -45,19 +62,12 @@ platform :ios do
       )
     end
 
-    sigh(
-      api_key: api_key,
-      app_identifier: "com.ImagineBowl.Sonance",
-      force: false,
-      readonly: ENV["CI"] == "true"
-    )
-
     update_code_signing_settings(
       use_automatic_signing: false,
       path: "Sonance.xcodeproj",
       team_id: "GLDH2T9TP5",
       code_sign_identity: "Apple Distribution",
-      profile_name: ENV["SIGH_NAME"],
+      profile_name: profile_name,
       targets: ["Sonance"]
     )
 
@@ -73,5 +83,39 @@ platform :ios do
       api_key: api_key,
       skip_waiting_for_build_processing: true
     )
+  end
+
+  def import_ci_signing(keychain_path:, keychain_password:)
+    UI.user_error!(
+      "Missing BUILD_CERTIFICATE_BASE64 GitHub secret. " \
+      "Export your Apple Distribution .p12 from Keychain Access, " \
+      "then run: base64 -i Certificates.p12 | pbcopy"
+    ) unless ENV["BUILD_CERTIFICATE_BASE64"]
+
+    UI.user_error!(
+      "Missing P12_PASSWORD GitHub secret (password used when exporting the .p12)"
+    ) unless ENV["P12_PASSWORD"]
+
+    UI.user_error!(
+      "Missing BUILD_PROVISION_PROFILE_BASE64 GitHub secret. " \
+      "Download com.ImagineBowl.Sonance AppStore from Apple Developer, " \
+      "then run: base64 -i profile.mobileprovision | pbcopy"
+    ) unless ENV["BUILD_PROVISION_PROFILE_BASE64"]
+
+    cert_path = "ci_certificate.p12"
+    profile_path = "ci_profile.mobileprovision"
+
+    File.binwrite(cert_path, Base64.decode64(ENV["BUILD_CERTIFICATE_BASE64"]))
+    File.binwrite(profile_path, Base64.decode64(ENV["BUILD_PROVISION_PROFILE_BASE64"]))
+
+    sh(
+      "security import '#{cert_path}' -k '#{keychain_path}' -P '#{ENV['P12_PASSWORD']}' -T /usr/bin/codesign -T /usr/bin/security",
+      log: false
+    )
+
+    install_provisioning_profile(path: profile_path)
+
+    parsed = FastlaneCore::ProvisioningProfile.parse(File.read(profile_path))
+    parsed[:name]
   end
 end
