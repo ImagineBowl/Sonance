@@ -99,15 +99,23 @@ extension TunerView {
                 .foregroundStyle(Color.white)
 
                 VStack(spacing: 4) {
-                    Text(tuningStatus)
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.9))
-
-                    if audioAnalyzer.isNoteLocked {
-                        Label("Note locked", systemImage: "lock.fill")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(Color.white.opacity(0.75))
+                    ZStack {
+                        Text("In Tune!")
+                            .opacity(presentation.phase == .inTune ? 1 : 0)
+                        Text("Sharp")
+                            .opacity(presentation.phase != .inTune && detectedNote.offset > 0 ? 1 : 0)
+                        Text("Flat")
+                            .opacity(presentation.phase != .inTune && detectedNote.offset <= 0 ? 1 : 0)
                     }
+                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .accessibilityLabel(tuningStatus)
+
+                    Label("Note locked", systemImage: "lock.fill")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.75))
+                        .opacity(audioAnalyzer.isNoteLocked ? 1 : 0)
+                        .accessibilityHidden(!audioAnalyzer.isNoteLocked)
                 }
             } else {
                 Text("♪")

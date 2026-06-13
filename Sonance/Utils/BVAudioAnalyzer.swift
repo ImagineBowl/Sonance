@@ -232,9 +232,19 @@ class AudioAnalyzer: ObservableObject {
     private func reconfigureAudioEngineIfNeeded() {
         guard permissionGranted else { return }
         let wasRunning = isRunning
+
         tearDownAudioEngine()
-        if wasRunning {
-            start()
+        aboveThresholdCount = 0
+        pendingFrequency = 0
+        pendingAmplitude = 0
+
+        DispatchQueue.main.async {
+            self.isRunning = false
+            self.frequency = 0
+            self.amplitude = 0
+            if wasRunning {
+                self.start()
+            }
         }
     }
 
