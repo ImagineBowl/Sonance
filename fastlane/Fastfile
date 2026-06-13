@@ -116,7 +116,7 @@ platform :ios do
     UI.user_error!(
       "Decoded provisioning profile is empty. Add BUILD_PROVISION_PROFILE_BASE64 " \
       "from: base64 -i YourProfile.mobileprovision | pbcopy"
-    ) if File.size(profile_path) < 100
+    ) if File.size(profile_path) < 500
 
     sh(
       "security import '#{cert_path}' -k '#{keychain_path}' -P '#{p12_password}' -T /usr/bin/codesign -T /usr/bin/security",
@@ -125,11 +125,27 @@ platform :ios do
 
     install_provisioning_profile(path: profile_path)
 
-    parsed = FastlaneCore::ProvisioningProfile.parse(File.read(profile_path))
-    parsed[:name]
+    extract_profile_name(profile_path)
   end
 
   def decode_base64_secret(value)
-    Base64.decode64(value.gsub(/\s+/, ""))
+    cleaned = value.gsub(/\s+/, "")
+    Base64.strict_decode64(cleaned)
+  rescue ArgumentError
+    UI.user_error!(
+      "Invalid base64 in GitHub secret. Re-copy using:\n" \
+      "openssl base64 -in your-file -A | pbcopy"
+    )
+  end
+
+  def extract_profile_name(path)
+    plist_xml = sh("security cms -D -i '#{path}' 2>/dev/null", log: false)
+    match = plist_xml.match(/<key>Name<\/key>\s*<string>(.*?)<\/string>/m)
+    UI.user_error!(
+      "Could not read provisioning profile name. " \
+      "Re-add BUILD_PROVISION_PROFILE_BASE64 using:\n" \
+      "openssl base64 -in YourProfile.mobileprovision -A | pbcopy"
+    ) unless match
+    match[1]
   end
 end
