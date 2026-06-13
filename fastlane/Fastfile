@@ -34,13 +34,22 @@ platform :ios do
       api_key: api_key,
       keychain_path: ci_keychain_path,
       keychain_password: ENV["MATCH_PASSWORD"],
-      skip_set_partition_list: true
+      skip_set_partition_list: true,
+      readonly: ENV["CI"] == "true"
     )
+
+    if ENV["CI"]
+      sh(
+        "security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k '#{ENV['MATCH_PASSWORD']}' '#{ci_keychain_path}' || true",
+        log: false
+      )
+    end
 
     sigh(
       api_key: api_key,
       app_identifier: "com.ImagineBowl.Sonance",
-      force: false
+      force: false,
+      readonly: ENV["CI"] == "true"
     )
 
     update_code_signing_settings(
@@ -56,7 +65,8 @@ platform :ios do
       scheme: "Sonance",
       export_method: "app-store",
       output_directory: "./build",
-      clean: true
+      clean: false,
+      skip_package_dependencies_resolution: true
     )
 
     upload_to_testflight(
