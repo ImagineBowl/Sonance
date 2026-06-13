@@ -86,30 +86,40 @@ platform :ios do
   end
 
   def import_ci_signing(keychain_path:, keychain_password:)
+    cert_b64 = ENV["BUILD_CERTIFICATE_BASE64"].to_s.strip
+    profile_b64 = ENV["BUILD_PROVISION_PROFILE_BASE64"].to_s.strip
+    p12_password = ENV["P12_PASSWORD"].to_s
+
     UI.user_error!(
       "Missing BUILD_CERTIFICATE_BASE64 GitHub secret. " \
       "Export your Apple Distribution .p12 from Keychain Access, " \
       "then run: base64 -i Certificates.p12 | pbcopy"
-    ) unless ENV["BUILD_CERTIFICATE_BASE64"]
+    ) if cert_b64.empty?
 
     UI.user_error!(
       "Missing P12_PASSWORD GitHub secret (password used when exporting the .p12)"
-    ) unless ENV["P12_PASSWORD"]
+    ) if p12_password.empty?
 
     UI.user_error!(
       "Missing BUILD_PROVISION_PROFILE_BASE64 GitHub secret. " \
       "Download com.ImagineBowl.Sonance AppStore from Apple Developer, " \
       "then run: base64 -i profile.mobileprovision | pbcopy"
-    ) unless ENV["BUILD_PROVISION_PROFILE_BASE64"]
+    ) if profile_b64.empty?
 
-    cert_path = "ci_certificate.p12"
-    profile_path = "ci_profile.mobileprovision"
+    cert_path = File.expand_path("ci_certificate.p12")
+    profile_path = File.expand_path("ci_profile.mobileprovision")
 
-    File.binwrite(cert_path, Base64.decode64(ENV["BUILD_CERTIFICATE_BASE64"]))
-    File.binwrite(profile_path, Base64.decode64(ENV["BUILD_PROVISION_PROFILE_BASE64"]))
+    File.binwrite(cert_path, decode_base64_secret(cert_b64))
+    File.binwrite(profile_path, decode_base64_secret(profile_b64))
+
+    UI.user_error!("Decoded certificate file is empty. Re-copy BUILD_CERTIFICATE_BASE64.") if File.size(cert_path) < 100
+    UI.user_error!(
+      "Decoded provisioning profile is empty. Add BUILD_PROVISION_PROFILE_BASE64 " \
+      "from: base64 -i YourProfile.mobileprovision | pbcopy"
+    ) if File.size(profile_path) < 100
 
     sh(
-      "security import '#{cert_path}' -k '#{keychain_path}' -P '#{ENV['P12_PASSWORD']}' -T /usr/bin/codesign -T /usr/bin/security",
+      "security import '#{cert_path}' -k '#{keychain_path}' -P '#{p12_password}' -T /usr/bin/codesign -T /usr/bin/security",
       log: false
     )
 
@@ -117,5 +127,9 @@ platform :ios do
 
     parsed = FastlaneCore::ProvisioningProfile.parse(File.read(profile_path))
     parsed[:name]
+  end
+
+  def decode_base64_secret(value)
+    Base64.decode64(value.gsub(/\s+/, ""))
   end
 end
