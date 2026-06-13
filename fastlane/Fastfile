@@ -35,7 +35,7 @@ platform :ios do
       keychain_path: ci_keychain_path,
       keychain_password: ENV["MATCH_PASSWORD"],
       skip_set_partition_list: true,
-      readonly: ENV["CI"] == "true"
+      force: false
     )
 
     if ENV["CI"]
