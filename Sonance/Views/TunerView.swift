@@ -12,15 +12,19 @@ struct TunerView: View {
     @Environment(\.openURL) var openURL
 
     var body: some View {
-        VStack(spacing: 0) {
-            if !audioAnalyzer.permissionGranted {
-                permissionDeniedView
-            } else {
-                tunerContent
+        ZStack {
+            tuningColor
+                .animation(.easeInOut(duration: 0.3), value: tuningColorBucket)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                if !audioAnalyzer.permissionGranted {
+                    permissionDeniedView
+                } else {
+                    tunerContent
+                }
             }
         }
-        .background(tuningColor)
-        .animation(.easeInOut(duration: 0.3), value: tuningColorBucket)
         .onAppear {
             audioAnalyzer.start()
         }
@@ -32,7 +36,6 @@ struct TunerView: View {
         .onDisappear {
             audioAnalyzer.stop()
         }
-        .ignoresSafeArea()
     }
 }
 

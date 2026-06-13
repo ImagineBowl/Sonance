@@ -89,7 +89,7 @@ extension TunerView {
 extension TunerView {
     var noteDisplayView: some View {
         VStack(spacing: 4) {
-            if detectedNote.isDetected {
+            ZStack {
                 HStack(alignment: .lastTextBaseline, spacing: 2) {
                     Text(detectedNote.note)
                         .font(.system(size: 80, weight: .bold, design: .rounded))
@@ -97,34 +97,40 @@ extension TunerView {
                         .font(.system(size: 36, weight: .semibold, design: .rounded))
                 }
                 .foregroundStyle(Color.white)
+                .opacity(detectedNote.isDetected ? 1 : 0)
 
-                VStack(spacing: 4) {
-                    ZStack {
-                        Text("In Tune!")
-                            .opacity(presentation.phase == .inTune ? 1 : 0)
-                        Text("Sharp")
-                            .opacity(presentation.phase != .inTune && detectedNote.offset > 0 ? 1 : 0)
-                        Text("Flat")
-                            .opacity(presentation.phase != .inTune && detectedNote.offset <= 0 ? 1 : 0)
-                    }
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.9))
-                    .accessibilityLabel(tuningStatus)
-
-                    Label("Note locked", systemImage: "lock.fill")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.75))
-                        .opacity(audioAnalyzer.isNoteLocked ? 1 : 0)
-                        .accessibilityHidden(!audioAnalyzer.isNoteLocked)
-                }
-            } else {
                 Text("♪")
                     .font(.system(size: 80, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.5))
+                    .opacity(detectedNote.isDetected ? 0 : 1)
+            }
 
-                Text(audioAnalyzer.isRunning ? "Listening..." : "Tap to Start")
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.6))
+            VStack(spacing: 4) {
+                ZStack {
+                    Text("In Tune!")
+                        .opacity(detectedNote.isDetected && presentation.phase == .inTune ? 1 : 0)
+                    Text("Sharp")
+                        .opacity(detectedNote.isDetected && presentation.phase != .inTune && detectedNote.offset > 0 ? 1 : 0)
+                    Text("Flat")
+                        .opacity(detectedNote.isDetected && presentation.phase != .inTune && detectedNote.offset <= 0 ? 1 : 0)
+                    Text("Listening...")
+                        .opacity(!detectedNote.isDetected && audioAnalyzer.isRunning ? 1 : 0)
+                    Text("Tap to Start")
+                        .opacity(!detectedNote.isDetected && !audioAnalyzer.isRunning ? 1 : 0)
+                }
+                .font(.system(size: 18, weight: .medium, design: .rounded))
+                .foregroundStyle(detectedNote.isDetected ? Color.white.opacity(0.9) : Color.white.opacity(0.6))
+                .accessibilityLabel(
+                    detectedNote.isDetected
+                        ? tuningStatus
+                        : (audioAnalyzer.isRunning ? "Listening" : "Tap to Start")
+                )
+
+                Label("Note locked", systemImage: "lock.fill")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.75))
+                    .opacity(audioAnalyzer.isNoteLocked ? 1 : 0)
+                    .accessibilityHidden(!audioAnalyzer.isNoteLocked)
             }
         }
         .accessibilityElement(children: .combine)
