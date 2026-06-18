@@ -23,6 +23,11 @@
 		5DF1A00B2F00000600000006 /* TunerView+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A00A2F00000600000006 /* TunerView+Presentation.swift */; };
 		5DF1A00D2F00000700000007 /* TunerView+Subviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A00C2F00000700000007 /* TunerView+Subviews.swift */; };
 		5DF1A00F2F00000800000008 /* TunerLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A00E2F00000800000008 /* TunerLayout.swift */; };
+		5DF1A0112F00000900000009 /* AudioSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0102F00000900000009 /* AudioSessionCoordinator.swift */; };
+		5DF1A0132F00000A0000000A /* MetronomeConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0122F00000A0000000A /* MetronomeConfig.swift */; };
+		5DF1A0152F00000B0000000B /* MetronomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0142F00000B0000000B /* MetronomeEngine.swift */; };
+		5DF1A0172F00000C0000000C /* MetronomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0162F00000C0000000C /* MetronomeView.swift */; };
+		5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +48,11 @@
 		5DF1A00A2F00000600000006 /* TunerView+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunerView+Presentation.swift"; sourceTree = "<group>"; };
 		5DF1A00C2F00000700000007 /* TunerView+Subviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunerView+Subviews.swift"; sourceTree = "<group>"; };
 		5DF1A00E2F00000800000008 /* TunerLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerLayout.swift; sourceTree = "<group>"; };
+		5DF1A0102F00000900000009 /* AudioSessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionCoordinator.swift; sourceTree = "<group>"; };
+		5DF1A0122F00000A0000000A /* MetronomeConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeConfig.swift; sourceTree = "<group>"; };
+		5DF1A0142F00000B0000000B /* MetronomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeEngine.swift; sourceTree = "<group>"; };
+		5DF1A0162F00000C0000000C /* MetronomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeView.swift; sourceTree = "<group>"; };
+		5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeBeatIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,8 +101,20 @@
 			children = (
 				5D95D5872EEAB4B70070366D /* TunerConfig.swift */,
 				5D9A21662D956A60000F0EC2 /* BVAudioAnalyzer.swift */,
+				5DF1A0102F00000900000009 /* AudioSessionCoordinator.swift */,
+				5DF1A0122F00000A0000000A /* MetronomeConfig.swift */,
+				5DF1A0142F00000B0000000B /* MetronomeEngine.swift */,
 			);
 			path = Utils;
+			sourceTree = "<group>";
+		};
+		5DF1A01A2F00000E0000000E /* Metronome */ = {
+			isa = PBXGroup;
+			children = (
+				5DF1A0162F00000C0000000C /* MetronomeView.swift */,
+				5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */,
+			);
+			path = Metronome;
 			sourceTree = "<group>";
 		};
 		5D9A21682D956AF3000F0EC2 /* Views */ = {
@@ -100,6 +122,7 @@
 			children = (
 				5DF1A0062F00000400000004 /* RootView.swift */,
 				5DF1A0042F00000300000003 /* LaunchScreenView.swift */,
+				5DF1A01A2F00000E0000000E /* Metronome */,
 				5D9A21692D956B11000F0EC2 /* TunerView.swift */,
 				5DF1A00A2F00000600000006 /* TunerView+Presentation.swift */,
 				5DF1A00C2F00000700000007 /* TunerView+Subviews.swift */,
@@ -198,6 +221,11 @@
 				5DF1A00B2F00000600000006 /* TunerView+Presentation.swift in Sources */,
 				5DF1A00D2F00000700000007 /* TunerView+Subviews.swift in Sources */,
 				5DF1A00F2F00000800000008 /* TunerLayout.swift in Sources */,
+				5DF1A0112F00000900000009 /* AudioSessionCoordinator.swift in Sources */,
+				5DF1A0132F00000A0000000A /* MetronomeConfig.swift in Sources */,
+				5DF1A0152F00000B0000000B /* MetronomeEngine.swift in Sources */,
+				5DF1A0172F00000C0000000C /* MetronomeView.swift in Sources */,
+				5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

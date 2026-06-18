@@ -10,12 +10,11 @@ import SwiftUI
 @main
 struct SonanceApp: App {
     @StateObject private var audioAnalyzer = AudioAnalyzer()
+    @StateObject private var metronomeEngine = MetronomeEngine()
 
     var body: some Scene {
         WindowGroup {
-            RootView(audioAnalyzer: audioAnalyzer)
+            RootView(audioAnalyzer: audioAnalyzer, metronomeEngine: metronomeEngine)
         }
     }
 }
-// MARK: TESTING CICD
-

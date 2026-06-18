@@ -282,9 +282,7 @@ class AudioAnalyzer: ObservableObject {
 
     #if os(iOS)
     private func configureAudioSession() throws {
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [])
-        try session.setActive(true)
+        try AudioSessionCoordinator.activate(.tuner)
     }
     #endif
 
