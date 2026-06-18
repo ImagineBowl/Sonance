@@ -36,14 +36,12 @@ extension TunerView {
                     .padding(.horizontal, TunerLayout.isPad ? 48 : 32)
                     .padding(.top, 8)
 
-                inputSensitivityView
+                inputSensitivityAndMicView
                     .padding(.horizontal, TunerLayout.isPad ? 48 : 32)
                     .padding(.top, 8)
+                    .padding(.bottom, TunerLayout.isPad ? 32 : 20)
 
-                Spacer()
-
-                controlButtonView
-                    .padding(.bottom, TunerLayout.isPad ? 56 : 40)
+                Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity)
         }
@@ -263,7 +261,19 @@ extension TunerView {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    var inputSensitivityView: some View {
+    var inputSensitivityAndMicView: some View {
+        HStack(alignment: .center, spacing: 14) {
+            inputSensitivityContent
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            micControlButton
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.18))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var inputSensitivityContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Label("Input Sensitivity", systemImage: "waveform")
@@ -295,9 +305,6 @@ extension TunerView {
             .accessibilityIdentifier("inputSensitivitySlider")
             .accessibilityValue("\(Int(audioAnalyzer.inputSensitivity * 100)) percent")
         }
-        .padding(14)
-        .background(Color.black.opacity(0.18))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var sensitivityMeterView: some View {
@@ -323,19 +330,19 @@ extension TunerView {
         }
     }
 
-    var controlButtonView: some View {
+    var micControlButton: some View {
         Button(action: toggleTuning) {
-            HStack(spacing: 8) {
+            VStack(spacing: 4) {
                 Image(systemName: audioAnalyzer.isRunning ? "stop.fill" : "mic.fill")
+                    .font(.system(size: 22, weight: .semibold))
                 Text(audioAnalyzer.isRunning ? "Stop" : "Start")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
             }
-            .font(.system(size: 18, weight: .semibold, design: .rounded))
             .foregroundStyle(tuningColor)
-            .padding(.horizontal, 32)
-            .padding(.vertical, 14)
+            .frame(width: TunerLayout.micButtonSize, height: TunerLayout.micButtonSize)
             .background(Color.white)
-            .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+            .clipShape(Circle())
+            .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
         }
         .accessibilityLabel(audioAnalyzer.isRunning ? "Stop tuning" : "Start tuning")
         .accessibilityIdentifier("tunerControlButton")

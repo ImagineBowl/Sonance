@@ -28,6 +28,7 @@ enum TunerLayout {
     static var noteTopPadding: CGFloat { isPad ? 72 : 50 }
     static var noteBottomPadding: CGFloat { isPad ? 96 : 50 }
     static var contentSpacing: CGFloat { isPad ? 28 : 16 }
+    static var micButtonSize: CGFloat { isPad ? 80 : 68 }
 
     static func gaugeMetrics(containerWidth: CGFloat, containerHeight: CGFloat) -> GaugeMetrics {
         let width = if isPad {
