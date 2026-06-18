@@ -364,12 +364,7 @@ final class MetronomeEngine: ObservableObject {
             return noErr
         }
 
-        dialTickBuffer = makeClickBuffer(
-            format: format,
-            frequency: MetronomeConfig.dialTickFrequency,
-            amplitude: MetronomeConfig.dialTickAmplitude,
-            duration: MetronomeConfig.dialTickDuration
-        )
+        dialTickBuffer = makeDialTickBuffer(format: format)
 
         guard dialTickBuffer != nil else {
             throw MetronomeEngineError.bufferCreationFailed
@@ -557,6 +552,45 @@ final class MetronomeEngine: ObservableObject {
             let envelope = exp(-time * 45)
             let sample = sin(2 * Double.pi * frequency * time) * envelope
             channelData[index] = Float(sample) * amplitude
+        }
+
+        return buffer
+    }
+
+    /// Short mechanical clock-tick for tempo knob feedback — not the metronome beat click.
+    private func makeDialTickBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        let duration = MetronomeConfig.dialTickDuration
+        let targetAmplitude = MetronomeConfig.dialTickAmplitude
+        let frameCount = AVAudioFrameCount(duration * sampleRate)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
+              let channelData = buffer.floatChannelData?[0] else {
+            return nil
+        }
+
+        buffer.frameLength = frameCount
+
+        var peak: Float = 0
+        for index in 0..<Int(frameCount) {
+            let time = Double(index) / sampleRate
+            let clickEnvelope = exp(-time * 320)
+            let bodyEnvelope = exp(-time * 140)
+
+            let thud = sin(2 * Double.pi * 320 * time) * bodyEnvelope * 0.22
+            let ping = sin(2 * Double.pi * 920 * time + 0.35) * clickEnvelope * 0.55
+            let noise = sin(Double(index) * 0.811) * sin(Double(index) * 0.373)
+            let transient = noise * exp(-time * 420) * 0.72
+
+            let impulse: Float = index == 0 ? 0.35 : 0
+            let sample = Float(thud + ping + transient) + impulse
+            channelData[index] = sample
+            peak = max(peak, abs(sample))
+        }
+
+        if peak > 0 {
+            let scale = targetAmplitude / peak
+            for index in 0..<Int(frameCount) {
+                channelData[index] *= scale
+            }
         }
 
         return buffer
