@@ -113,7 +113,7 @@ enum MetronomeConfig {
     static let accentAmplitude: Float = 0.9
     static let tickAmplitude: Float = 0.55
     static let dialTickDuration: TimeInterval = 0.009
-    static let dialTickAmplitude: Float = 0.11
+    static let dialTickAmplitude: Float = 0.5
 
     /// BPM is expressed as quarter-note tempo; the bottom number of the time signature scales click spacing.
     static let referenceBeatNoteValue = 4
