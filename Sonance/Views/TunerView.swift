@@ -25,17 +25,6 @@ struct TunerView: View {
                 }
             }
         }
-        .onAppear {
-            audioAnalyzer.start()
-        }
-        .onChange(of: audioAnalyzer.permissionGranted) { _, granted in
-            if granted {
-                audioAnalyzer.start()
-            }
-        }
-        .onDisappear {
-            audioAnalyzer.stop()
-        }
     }
 }
 

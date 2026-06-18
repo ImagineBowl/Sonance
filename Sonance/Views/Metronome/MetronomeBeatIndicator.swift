@@ -12,7 +12,7 @@ struct MetronomeBeatIndicator: View {
     let beatsPerBar: Int
     let isAccentBeat: Bool
     let isRunning: Bool
-    let pulseToken: UUID
+    let pulseGeneration: UInt
 
     @State private var pulseScale: CGFloat = 1.0
 
@@ -40,7 +40,7 @@ struct MetronomeBeatIndicator: View {
         .opacity(isRunning ? 1 : 0.55)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
-        .onChange(of: pulseToken) { _, _ in
+        .onChange(of: pulseGeneration) { _, _ in
             triggerPulse()
         }
     }
@@ -69,7 +69,7 @@ struct MetronomeBeatIndicator: View {
         beatsPerBar: 4,
         isAccentBeat: true,
         isRunning: true,
-        pulseToken: UUID()
+        pulseGeneration: 1
     )
     .padding()
     .background(Color.gray)

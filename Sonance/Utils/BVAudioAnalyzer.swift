@@ -28,7 +28,7 @@ struct DetectedNote: Equatable {
 }
 
 /// Audio analyzer that detects pitch from microphone input using FFT
-class AudioAnalyzer: ObservableObject {
+final class AudioAnalyzer: ObservableObject {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Sonance", category: "AudioAnalyzer")
     private var audioEngine: AVAudioEngine?
     private var inputNode: AVAudioInputNode?
@@ -45,6 +45,11 @@ class AudioAnalyzer: ObservableObject {
     private var pendingFrequency: Double = 0
     private var isTapInstalled = false
 
+    private var realParts: [Float] = []
+    private var imaginaryParts: [Float] = []
+    private var magnitudes: [Float] = []
+    private var hanningWindow: [Float] = []
+
     // Note lock state
     private var lockedMidiNote: Int?
     private var lockedTargetFrequency: Double?
@@ -57,6 +62,7 @@ class AudioAnalyzer: ObservableObject {
     @Published var isRunning: Bool = false
     @Published var permissionGranted: Bool = false
     @Published var amplitude: Float = 0.0
+    @Published private(set) var detectedNote: DetectedNote = .empty
     @Published private(set) var isNoteLocked: Bool = false
     @Published var instrumentMode: InstrumentMode = .standard {
         didSet {
@@ -89,17 +95,6 @@ class AudioAnalyzer: ObservableObject {
     private static let inputSensitivityKey = "inputSensitivityV2"
     private static let instrumentModeKey = "instrumentMode"
 
-    var detectedNote: DetectedNote {
-        if let lockedMidiNote, let lockedTargetFrequency {
-            return noteFromLockedTarget(
-                frequency: frequency,
-                lockedMidiNote: lockedMidiNote,
-                lockedTargetFrequency: lockedTargetFrequency
-            )
-        }
-        return frequencyToNote(frequency: frequency)
-    }
-
     init() {
         if UserDefaults.standard.object(forKey: Self.inputSensitivityKey) != nil {
             let saved = UserDefaults.standard.double(forKey: Self.inputSensitivityKey)
@@ -124,6 +119,7 @@ class AudioAnalyzer: ObservableObject {
         resetNoteLock()
         DispatchQueue.main.async {
             self.frequency = 0
+            self.detectedNote = .empty
         }
     }
 
@@ -147,15 +143,11 @@ class AudioAnalyzer: ObservableObject {
         case .authorized:
             DispatchQueue.main.async {
                 self.permissionGranted = true
-                self.start()
             }
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                 DispatchQueue.main.async {
                     self?.permissionGranted = granted
-                    if granted {
-                        self?.start()
-                    }
                 }
             }
         case .denied, .restricted:
@@ -169,9 +161,6 @@ class AudioAnalyzer: ObservableObject {
         AVAudioApplication.requestRecordPermission { [weak self] granted in
             DispatchQueue.main.async {
                 self?.permissionGranted = granted
-                if granted {
-                    self?.start()
-                }
             }
         }
         #endif
@@ -192,6 +181,21 @@ class AudioAnalyzer: ObservableObject {
         log2n = vDSP_Length(round(log2(Double(activeBufferSize))))
         bufferSizePOT = Int(pow(2, Double(log2n)))
         fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
+        ensureProcessingBuffers()
+    }
+
+    private func ensureProcessingBuffers() {
+        guard realParts.count != bufferSizePOT else { return }
+
+        realParts = [Float](repeating: 0, count: bufferSizePOT)
+        imaginaryParts = [Float](repeating: 0, count: bufferSizePOT)
+        magnitudes = [Float](repeating: 0, count: bufferSizePOT / 2)
+        hanningWindow = vDSP.window(
+            ofType: Float.self,
+            usingSequence: .hanningDenormalized,
+            count: bufferSizePOT,
+            isHalfWindow: false
+        )
     }
 
     private func prepareAudioEngine() throws {
@@ -242,6 +246,7 @@ class AudioAnalyzer: ObservableObject {
             self.isRunning = false
             self.frequency = 0
             self.amplitude = 0
+            self.detectedNote = .empty
             if wasRunning {
                 self.start()
             }
@@ -294,6 +299,7 @@ class AudioAnalyzer: ObservableObject {
             self.isRunning = false
             self.frequency = 0.0
             self.amplitude = 0.0
+            self.detectedNote = .empty
         }
     }
 
@@ -342,45 +348,59 @@ class AudioAnalyzer: ObservableObject {
 
     private func processAudioBuffer(buffer: AVAudioPCMBuffer) {
         guard let floatChannelData = buffer.floatChannelData,
-              let fftSetup = fftSetup else { return }
+              let fftSetup = fftSetup,
+              !hanningWindow.isEmpty else { return }
 
         let channelData = floatChannelData.pointee
         let bufferLength = Int(buffer.frameLength)
         let lowCutoff = TunerConfig.lowFrequencyCutoff(for: instrumentMode)
 
-        var realParts = [Float](repeating: 0.0, count: bufferSizePOT)
-        var imaginaryParts = [Float](repeating: 0.0, count: bufferSizePOT)
-
         let copyCount = min(bufferLength, bufferSizePOT)
-        realParts.replaceSubrange(0..<copyCount, with: UnsafeBufferPointer(start: channelData, count: copyCount))
+        realParts.withUnsafeMutableBufferPointer { realBuffer in
+            guard let realBase = realBuffer.baseAddress else { return }
+            realBase.initialize(repeating: 0, count: bufferSizePOT)
+            realBase.update(from: channelData, count: copyCount)
+        }
 
         if currentInputGain != 1 {
             var gain = currentInputGain
             vDSP_vsmul(realParts, 1, &gain, &realParts, 1, vDSP_Length(bufferSizePOT))
         }
 
-        let window = vDSP.window(ofType: Float.self, usingSequence: .hanningDenormalized, count: bufferSizePOT, isHalfWindow: false)
-        vDSP.multiply(window, realParts, result: &realParts)
-        let windowedSamples = Array(realParts.prefix(copyCount))
+        vDSP.multiply(hanningWindow, realParts, result: &realParts)
 
         var signalLevel: Float = 0
-        windowedSamples.withUnsafeBufferPointer { samples in
+        realParts.withUnsafeBufferPointer { samples in
             vDSP_rmsqv(samples.baseAddress!, 1, &signalLevel, vDSP_Length(copyCount))
         }
 
         realParts.withUnsafeMutableBufferPointer { realBuffer in
             imaginaryParts.withUnsafeMutableBufferPointer { imagBuffer in
-                var splitComplex = DSPSplitComplex(realp: realBuffer.baseAddress!, imagp: imagBuffer.baseAddress!)
+                guard let realBase = realBuffer.baseAddress,
+                      let imagBase = imagBuffer.baseAddress else { return }
+
+                imagBase.initialize(repeating: 0, count: bufferSizePOT)
+                var splitComplex = DSPSplitComplex(realp: realBase, imagp: imagBase)
 
                 vDSP_fft_zip(fftSetup, &splitComplex, 1, log2n, FFTDirection(kFFTDirection_Forward))
-
-                var magnitudes = [Float](repeating: 0.0, count: bufferSizePOT / 2)
                 vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(bufferSizePOT / 2))
 
-                let spectralSlice = Array(magnitudes[5...])
-                let maxMagnitude = spectralSlice.max() ?? 0.0
-                let medianMagnitude = sortedMedian(spectralSlice)
-                let peakProminence = maxMagnitude / max(medianMagnitude, 1e-12)
+                let spectralStart = 5
+                let spectralCount = magnitudes.count - spectralStart
+                guard spectralCount > 0 else {
+                    deliverResults(amplitude: signalLevel, frequency: 0)
+                    return
+                }
+
+                var maxMagnitude: Float = 0
+                var meanMagnitude: Float = 0
+                magnitudes.withUnsafeBufferPointer { buffer in
+                    let slice = UnsafeBufferPointer(rebasing: buffer[spectralStart...])
+                    vDSP_maxv(slice.baseAddress!, 1, &maxMagnitude, vDSP_Length(spectralCount))
+                    vDSP_meanv(slice.baseAddress!, 1, &meanMagnitude, vDSP_Length(spectralCount))
+                }
+
+                let peakProminence = maxMagnitude / max(meanMagnitude, 1e-12)
 
                 let passesLevel = signalLevel >= currentMinAmplitude
                 let passesProminence = peakProminence >= currentPeakProminence
@@ -429,7 +449,8 @@ class AudioAnalyzer: ObservableObject {
                 )
 
                 let refinedFrequency = refineFrequencyWithAutocorrelation(
-                    samples: windowedSamples,
+                    samples: realParts,
+                    sampleCount: copyCount,
                     sampleRate: sampleRate,
                     roughFrequency: roughFrequency
                 )
@@ -578,6 +599,17 @@ class AudioAnalyzer: ObservableObject {
         return frequencyToNote(frequency: frequency)
     }
 
+    private func resolvedDetectedNote(for frequency: Double) -> DetectedNote {
+        if let lockedMidiNote, let lockedTargetFrequency {
+            return noteFromLockedTarget(
+                frequency: frequency,
+                lockedMidiNote: lockedMidiNote,
+                lockedTargetFrequency: lockedTargetFrequency
+            )
+        }
+        return frequencyToNote(frequency: frequency)
+    }
+
     private func deliverResults(amplitude: Float, frequency: Double) {
         pendingAmplitude = amplitude
         pendingFrequency = frequency
@@ -588,18 +620,14 @@ class AudioAnalyzer: ObservableObject {
         lastUIUpdateTime = now
         let amplitudeToPublish = pendingAmplitude
         let frequencyToPublish = pendingFrequency
+        let noteToPublish = resolvedDetectedNote(for: frequencyToPublish)
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.amplitude = amplitudeToPublish
             self.frequency = frequencyToPublish
+            self.detectedNote = noteToPublish
         }
-    }
-
-    private func sortedMedian(_ values: [Float]) -> Float {
-        guard !values.isEmpty else { return 0 }
-        let sorted = values.sorted()
-        return sorted[sorted.count / 2]
     }
 
     private func logParabolicPeakInterpolation(magnitudes: [Float], maxIndex: Int) -> Float {
@@ -618,10 +646,11 @@ class AudioAnalyzer: ObservableObject {
 
     private func refineFrequencyWithAutocorrelation(
         samples: [Float],
+        sampleCount: Int,
         sampleRate: Double,
         roughFrequency: Double
     ) -> Double {
-        guard roughFrequency > 0, samples.count > 20 else { return roughFrequency }
+        guard roughFrequency > 0, sampleCount > 20 else { return roughFrequency }
 
         let searchRatio = TunerConfig.autocorrelationSearchRatio(for: instrumentMode)
         let roughPeriod = sampleRate / roughFrequency
@@ -629,14 +658,14 @@ class AudioAnalyzer: ObservableObject {
         let searchRange = max(2, Int(round(roughPeriod * searchRatio)))
 
         let minLag = max(2, centerLag - searchRange)
-        let maxLag = min(samples.count - 2, centerLag + searchRange)
+        let maxLag = min(sampleCount - 2, centerLag + searchRange)
         guard minLag < maxLag else { return roughFrequency }
 
         var correlations: [(lag: Int, value: Float)] = []
         correlations.reserveCapacity(maxLag - minLag + 1)
 
         for lag in minLag...maxLag {
-            correlations.append((lag, normalizedAutocorrelation(samples: samples, lag: lag)))
+            correlations.append((lag, normalizedAutocorrelation(samples: samples, sampleCount: sampleCount, lag: lag)))
         }
 
         guard let peakIndex = correlations.indices.max(by: { correlations[$0].value < correlations[$1].value }),
@@ -662,8 +691,8 @@ class AudioAnalyzer: ObservableObject {
         return sampleRate / refinedLag
     }
 
-    private func normalizedAutocorrelation(samples: [Float], lag: Int) -> Float {
-        let count = samples.count - lag
+    private func normalizedAutocorrelation(samples: [Float], sampleCount: Int, lag: Int) -> Float {
+        let count = sampleCount - lag
         guard count > 0 else { return 0 }
 
         var sum: Float = 0

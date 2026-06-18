@@ -28,7 +28,7 @@ struct MetronomeView: View {
                     beatsPerBar: engine.timeSignature.beatsPerBar,
                     isAccentBeat: engine.isAccentBeat,
                     isRunning: engine.isRunning,
-                    pulseToken: engine.pulseToken
+                    pulseGeneration: engine.pulseGeneration
                 )
                 .padding(.vertical, TunerLayout.isPad ? 24 : 16)
 
@@ -46,9 +46,6 @@ struct MetronomeView: View {
         }
         .sheet(isPresented: $isTimeSignatureSheetPresented) {
             MetronomeTimeSignatureSheet(timeSignature: $engine.timeSignature)
-        }
-        .onAppear {
-            engine.warmUp()
         }
     }
 

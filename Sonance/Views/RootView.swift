@@ -23,36 +23,47 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            TabView(selection: $selectedTab) {
-                TunerView(audioAnalyzer: audioAnalyzer)
-                    .tabItem {
-                        Label("Tuner", systemImage: "tuningfork")
-                    }
-                    .tag(AppTab.tuner)
+            if isLaunchComplete {
+                TabView(selection: $selectedTab) {
+                    TunerView(audioAnalyzer: audioAnalyzer)
+                        .tabItem {
+                            Label("Tuner", systemImage: "tuningfork")
+                        }
+                        .tag(AppTab.tuner)
 
-                MetronomeView(engine: metronomeEngine)
-                    .tabItem {
-                        Label("Metronome", systemImage: "metronome")
+                    MetronomeView(engine: metronomeEngine)
+                        .tabItem {
+                            Label("Metronome", systemImage: "metronome")
+                        }
+                        .tag(AppTab.metronome)
+                }
+                .onChange(of: selectedTab) { _, tab in
+                    handleTabChange(to: tab)
+                }
+                .onAppear {
+                    handleTabChange(to: selectedTab)
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .inactive, .background:
+                        metronomeEngine.prepareForBackground()
+                    case .active:
+                        metronomeEngine.recoverPlaybackIfNeeded()
+                    @unknown default:
+                        break
                     }
-                    .tag(AppTab.metronome)
-            }
-            .onChange(of: selectedTab) { _, tab in
-                handleTabChange(to: tab)
-            }
-            .onChange(of: scenePhase) { _, phase in
-                switch phase {
-                case .inactive, .background:
-                    metronomeEngine.prepareForBackground()
-                case .active:
-                    metronomeEngine.recoverPlaybackIfNeeded()
-                @unknown default:
-                    break
+                }
+                .onChange(of: audioAnalyzer.permissionGranted) { _, granted in
+                    if granted, selectedTab == .tuner {
+                        audioAnalyzer.start()
+                    }
                 }
             }
 
             if !isLaunchComplete {
                 LaunchScreenView {
                     isLaunchComplete = true
+                    handleTabChange(to: selectedTab)
                     presentUpdateAlertIfNeeded()
                 }
             }

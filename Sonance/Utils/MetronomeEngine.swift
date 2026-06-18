@@ -141,7 +141,7 @@ final class MetronomeEngine: ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var beatIndex = 0
     @Published private(set) var isAccentBeat = false
-    @Published private(set) var pulseToken = UUID()
+    @Published private(set) var pulseGeneration: UInt = 0
 
     private nonisolated(unsafe) var audioEngine: AVAudioEngine?
     private nonisolated(unsafe) var sourceNode: AVAudioSourceNode?
@@ -159,6 +159,7 @@ final class MetronomeEngine: ObservableObject {
 
     #if canImport(UIKit)
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private var audioSessionObservers: [NSObjectProtocol] = []
     #endif
 
     init() {
@@ -176,7 +177,7 @@ final class MetronomeEngine: ObservableObject {
         }
         #if canImport(UIKit)
         hapticGenerator.prepare()
-        registerForAppLifecycle()
+        registerForAudioSessionNotifications()
         #endif
     }
 
@@ -184,6 +185,11 @@ final class MetronomeEngine: ObservableObject {
         if let beatObserver {
             NotificationCenter.default.removeObserver(beatObserver)
         }
+        #if canImport(UIKit)
+        for observer in audioSessionObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        #endif
     }
 
     func warmUp() {
@@ -469,7 +475,7 @@ final class MetronomeEngine: ObservableObject {
 
         beatIndex = beatInBar
         isAccentBeat = isAccent
-        pulseToken = UUID()
+        pulseGeneration &+= 1
 
         if isAccent {
             #if canImport(UIKit)
@@ -481,60 +487,34 @@ final class MetronomeEngine: ObservableObject {
     // MARK: - Audio Session
 
     #if canImport(UIKit)
-    private func registerForAppLifecycle() {
+    private func registerForAudioSessionNotifications() {
         let center = NotificationCenter.default
 
-        center.addObserver(
-            forName: UIApplication.willResignActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.prepareForBackground()
+        audioSessionObservers.append(
+            center.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: AVAudioSession.sharedInstance(),
+                queue: .main
+            ) { [weak self] notification in
+                Task { @MainActor in
+                    self?.handleAudioInterruption(notification)
+                }
             }
-        }
+        )
 
-        center.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.prepareForBackground()
+        audioSessionObservers.append(
+            center.addObserver(
+                forName: AVAudioSession.mediaServicesWereResetNotification,
+                object: AVAudioSession.sharedInstance(),
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    guard self?.wantsToPlay == true else { return }
+                    self?.tearDownEngine()
+                    self?.resumePlaybackIfNeeded()
+                }
             }
-        }
-
-        center.addObserver(
-            forName: UIApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.recoverPlaybackIfNeeded()
-            }
-        }
-
-        center.addObserver(
-            forName: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance(),
-            queue: .main
-        ) { [weak self] notification in
-            Task { @MainActor in
-                self?.handleAudioInterruption(notification)
-            }
-        }
-
-        center.addObserver(
-            forName: AVAudioSession.mediaServicesWereResetNotification,
-            object: AVAudioSession.sharedInstance(),
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard self?.wantsToPlay == true else { return }
-                self?.tearDownEngine()
-                self?.resumePlaybackIfNeeded()
-            }
-        }
+        )
     }
 
     private func handleAudioInterruption(_ notification: Notification) {
