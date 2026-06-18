@@ -101,6 +101,9 @@ enum MetronomeConfig {
     static let dialTickDuration: TimeInterval = 0.018
     static let dialTickAmplitude: Float = 0.42
 
+    /// BPM is expressed as quarter-note tempo; the bottom number of the time signature scales click spacing.
+    static let referenceBeatNoteValue = 4
+
     private static let bpmKey = "metronomeBPM"
     private static let timeSignatureKey = "metronomeTimeSignature"
 
@@ -128,7 +131,14 @@ enum MetronomeConfig {
         UserDefaults.standard.set(signature.rawValue, forKey: timeSignatureKey)
     }
 
-    static func beatInterval(for bpm: Double) -> TimeInterval {
-        60.0 / bpm
+    static func beatInterval(for bpm: Double, timeSignature: TimeSignature) -> TimeInterval {
+        let beatUnitScale = Double(referenceBeatNoteValue) / Double(timeSignature.noteValue)
+        return (60.0 / bpm) * beatUnitScale
+    }
+
+    static func bpm(fromBeatInterval interval: TimeInterval, timeSignature: TimeSignature) -> Double {
+        guard interval > 0 else { return defaultBPM }
+        let beatUnitScale = Double(referenceBeatNoteValue) / Double(timeSignature.noteValue)
+        return (60.0 / interval) * beatUnitScale
     }
 }

@@ -48,7 +48,7 @@ struct RootView: View {
     private func handleTabChange(to tab: AppTab) {
         switch tab {
         case .tuner:
-            metronomeEngine.stop()
+            metronomeEngine.endSession()
             if audioAnalyzer.permissionGranted {
                 audioAnalyzer.start()
             }

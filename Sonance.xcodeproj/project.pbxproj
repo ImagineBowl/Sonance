@@ -30,6 +30,7 @@
 		5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */; };
 		5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */; };
 		5DF1A01F2F00001000000010 /* MetronomeTimeSignatureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */; };
+		5DF1A0212F00001100000011 /* MetronomeNowPlayingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0202F00001100000011 /* MetronomeNowPlayingController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +58,7 @@
 		5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeBeatIndicator.swift; sourceTree = "<group>"; };
 		5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTempoKnob.swift; sourceTree = "<group>"; };
 		5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTimeSignatureSheet.swift; sourceTree = "<group>"; };
+		5DF1A0202F00001100000011 /* MetronomeNowPlayingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeNowPlayingController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +110,7 @@
 				5DF1A0102F00000900000009 /* AudioSessionCoordinator.swift */,
 				5DF1A0122F00000A0000000A /* MetronomeConfig.swift */,
 				5DF1A0142F00000B0000000B /* MetronomeEngine.swift */,
+				5DF1A0202F00001100000011 /* MetronomeNowPlayingController.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -234,6 +237,7 @@
 				5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */,
 				5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */,
 				5DF1A01F2F00001000000010 /* MetronomeTimeSignatureSheet.swift in Sources */,
+				5DF1A0212F00001100000011 /* MetronomeNowPlayingController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -378,6 +382,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Sonance;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";
+				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -413,6 +418,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Sonance;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";
+				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;

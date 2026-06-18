@@ -29,6 +29,7 @@ final class MetronomeEngine: ObservableObject {
             if isRunning {
                 restartScheduling()
             }
+            syncNowPlayingIfNeeded()
         }
     }
 
@@ -40,6 +41,7 @@ final class MetronomeEngine: ObservableObject {
             if isRunning {
                 restartScheduling()
             }
+            syncNowPlayingIfNeeded()
         }
     }
 
@@ -60,6 +62,8 @@ final class MetronomeEngine: ObservableObject {
     private var nextBeatSampleTime: AVAudioFramePosition = 0
     private var scheduledBeatCount = 0
     private var tapTimestamps: [TimeInterval] = []
+    private let nowPlayingController = MetronomeNowPlayingController()
+    private var isNowPlayingSessionActive = false
 
     #if canImport(UIKit)
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .medium)
@@ -68,6 +72,7 @@ final class MetronomeEngine: ObservableObject {
     init() {
         bpm = MetronomeConfig.savedBPM()
         timeSignature = MetronomeConfig.savedTimeSignature()
+        nowPlayingController.configure(with: self)
         #if canImport(UIKit)
         hapticGenerator.prepare()
         #endif
@@ -92,6 +97,8 @@ final class MetronomeEngine: ObservableObject {
 
             playerNode.play()
             isRunning = true
+            isNowPlayingSessionActive = true
+            syncNowPlayingIfNeeded()
             scheduleBeats(count: MetronomeConfig.beatsToScheduleAhead)
         } catch {
             Self.logger.error("Failed to start metronome: \(error.localizedDescription)")
@@ -107,6 +114,13 @@ final class MetronomeEngine: ObservableObject {
         isRunning = false
         beatIndex = 0
         isAccentBeat = false
+        syncNowPlayingIfNeeded()
+    }
+
+    func endSession() {
+        stop()
+        isNowPlayingSessionActive = false
+        nowPlayingController.clear()
     }
 
     func toggle() {
@@ -136,7 +150,7 @@ final class MetronomeEngine: ObservableObject {
         let averageInterval = intervals.reduce(0, +) / Double(intervals.count)
         guard averageInterval > 0 else { return }
 
-        let tappedBPM = 60.0 / averageInterval
+        let tappedBPM = MetronomeConfig.bpm(fromBeatInterval: averageInterval, timeSignature: timeSignature)
         setBPM(tappedBPM, playTick: true)
     }
 
@@ -303,7 +317,9 @@ final class MetronomeEngine: ObservableObject {
         let scheduledBeatInBar = beatInBar
 
         let beatTime = AVAudioTime(sampleTime: nextBeatSampleTime, atRate: sampleRate)
-        let framesPerBeat = AVAudioFramePosition(MetronomeConfig.beatInterval(for: bpm) * sampleRate)
+        let framesPerBeat = AVAudioFramePosition(
+            MetronomeConfig.beatInterval(for: bpm, timeSignature: timeSignature) * sampleRate
+        )
         nextBeatSampleTime += framesPerBeat
         beatCounter += 1
         scheduledBeatCount += 1
@@ -362,5 +378,14 @@ final class MetronomeEngine: ObservableObject {
         }
 
         return buffer
+    }
+
+    private func syncNowPlayingIfNeeded() {
+        guard isNowPlayingSessionActive else { return }
+        nowPlayingController.update(
+            bpm: bpm,
+            timeSignature: timeSignature,
+            isRunning: isRunning
+        )
     }
 }
