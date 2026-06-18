@@ -449,7 +449,7 @@ final class AudioAnalyzer: ObservableObject {
                 )
 
                 let refinedFrequency = refineFrequencyWithAutocorrelation(
-                    samples: realParts,
+                    samples: UnsafeBufferPointer(start: realBase, count: copyCount),
                     sampleCount: copyCount,
                     sampleRate: sampleRate,
                     roughFrequency: roughFrequency
@@ -645,7 +645,7 @@ final class AudioAnalyzer: ObservableObject {
     }
 
     private func refineFrequencyWithAutocorrelation(
-        samples: [Float],
+        samples: UnsafeBufferPointer<Float>,
         sampleCount: Int,
         sampleRate: Double,
         roughFrequency: Double
@@ -691,7 +691,7 @@ final class AudioAnalyzer: ObservableObject {
         return sampleRate / refinedLag
     }
 
-    private func normalizedAutocorrelation(samples: [Float], sampleCount: Int, lag: Int) -> Float {
+    private func normalizedAutocorrelation(samples: UnsafeBufferPointer<Float>, sampleCount: Int, lag: Int) -> Float {
         let count = sampleCount - lag
         guard count > 0 else { return 0 }
 
