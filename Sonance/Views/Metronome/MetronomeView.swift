@@ -44,11 +44,11 @@ struct MetronomeView: View {
             }
             .padding(.horizontal, TunerLayout.isPad ? 48 : 24)
         }
-        .onDisappear {
-            engine.endSession()
-        }
         .sheet(isPresented: $isTimeSignatureSheetPresented) {
             MetronomeTimeSignatureSheet(timeSignature: $engine.timeSignature)
+        }
+        .onAppear {
+            engine.warmUp()
         }
     }
 

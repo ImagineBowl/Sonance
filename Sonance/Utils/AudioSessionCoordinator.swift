@@ -20,9 +20,21 @@ enum AudioSessionCoordinator {
         case .tuner:
             try session.setCategory(.record, mode: .measurement, options: [])
         case .metronome:
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            if session.category == .record || session.category == .playAndRecord {
+                try session.setActive(false, options: .notifyOthersOnDeactivation)
+            }
+            try session.setCategory(.playback, mode: .default, options: [])
         }
         try session.setActive(true)
+        #endif
+    }
+
+    static func deactivate() throws {
+        #if os(iOS)
+        try AVAudioSession.sharedInstance().setActive(
+            false,
+            options: .notifyOthersOnDeactivation
+        )
         #endif
     }
 }

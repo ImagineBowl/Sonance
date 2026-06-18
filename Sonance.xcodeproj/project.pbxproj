@@ -59,6 +59,7 @@
 		5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTempoKnob.swift; sourceTree = "<group>"; };
 		5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTimeSignatureSheet.swift; sourceTree = "<group>"; };
 		5DF1A0202F00001100000011 /* MetronomeNowPlayingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeNowPlayingController.swift; sourceTree = "<group>"; };
+		5DF1A0222F00001200000012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +97,7 @@
 				5D9A21562D9568BA000F0EC2 /* SonanceApp.swift */,
 				5DF1A0022F00000200000002 /* LaunchScreen.storyboard */,
 				5D9A215A2D9568BB000F0EC2 /* Assets.xcassets */,
+				5DF1A0222F00001200000012 /* Info.plist */,
 				5D9A215D2D9568BB000F0EC2 /* Preview Assets.xcassets */,
 				5DF1A0002F00000100000001 /* PrivacyInfo.xcprivacy */,
 			);
@@ -379,6 +381,7 @@
 				DEVELOPMENT_TEAM = GLDH2T9TP5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sonance/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Sonance;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";
@@ -415,6 +418,7 @@
 				DEVELOPMENT_TEAM = GLDH2T9TP5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sonance/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Sonance;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sonance uses the microphone to listen to your instrument and detect pitch for tuning. Audio is processed on your device and is not recorded or sent anywhere.";

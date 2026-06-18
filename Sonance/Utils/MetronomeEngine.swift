@@ -11,6 +11,100 @@ import os
 import UIKit
 #endif
 
+private final class MetronomeRenderState: @unchecked Sendable {
+    let lock = NSLock()
+
+    var isActive = false
+    var bpm: Double = MetronomeConfig.defaultBPM
+    var beatsPerBar = MetronomeConfig.defaultTimeSignature.beatsPerBar
+    var noteValue = MetronomeConfig.defaultTimeSignature.noteValue
+    var sampleRate: Double = 44_100
+
+    var accentSamples: [Float] = []
+    var tickSamples: [Float] = []
+
+    var timelineSample: Int64 = 0
+    var nextClickSample: Int64 = 0
+    var clickSampleIndex = 0
+    var currentClickSamples: [Float] = []
+    var beatInBar = 0
+
+    func resetTimeline(leadTime: TimeInterval) {
+        timelineSample = 0
+        nextClickSample = Int64(leadTime * sampleRate)
+        clickSampleIndex = 0
+        currentClickSamples = []
+        beatInBar = 0
+    }
+
+    func framesPerBeat() -> Int64 {
+        let beatUnitScale = Double(MetronomeConfig.referenceBeatNoteValue) / Double(noteValue)
+        let interval = (60.0 / bpm) * beatUnitScale
+        return max(1, Int64(interval * sampleRate))
+    }
+
+    func beginClick(isAccent: Bool) {
+        currentClickSamples = isAccent ? accentSamples : tickSamples
+        clickSampleIndex = 0
+    }
+
+    func render(into buffer: UnsafeMutablePointer<Float>, frameCount: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard isActive else {
+            buffer.initialize(repeating: 0, count: frameCount)
+            return
+        }
+
+        for frame in 0..<frameCount {
+            if clickSampleIndex == 0,
+               currentClickSamples.isEmpty,
+               timelineSample >= nextClickSample {
+                let isAccent = beatInBar == 0
+                beginClick(isAccent: isAccent)
+                nextClickSample = timelineSample + framesPerBeat()
+                let finishedBeat = beatInBar
+                beatInBar = (beatInBar + 1) % max(beatsPerBar, 1)
+                notifyBeat(beatInBar: finishedBeat, isAccent: isAccent)
+            }
+
+            if clickSampleIndex < currentClickSamples.count {
+                buffer[frame] = currentClickSamples[clickSampleIndex]
+                clickSampleIndex += 1
+            } else {
+                buffer[frame] = 0
+                currentClickSamples = []
+                clickSampleIndex = 0
+            }
+
+            timelineSample += 1
+        }
+    }
+
+    private func notifyBeat(beatInBar: Int, isAccent: Bool) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .metronomeBeatDidFire,
+                object: nil,
+                userInfo: [
+                    MetronomeBeatNotificationKey.beatInBar: beatInBar,
+                    MetronomeBeatNotificationKey.isAccent: isAccent
+                ]
+            )
+        }
+    }
+}
+
+private enum MetronomeBeatNotificationKey {
+    static let beatInBar = "beatInBar"
+    static let isAccent = "isAccent"
+}
+
+extension Notification.Name {
+    fileprivate static let metronomeBeatDidFire = Notification.Name("metronomeBeatDidFire")
+}
+
 @MainActor
 final class MetronomeEngine: ObservableObject {
     private static let logger = Logger(
@@ -26,9 +120,7 @@ final class MetronomeEngine: ObservableObject {
                 return
             }
             MetronomeConfig.saveBPM(clamped)
-            if isRunning {
-                restartScheduling()
-            }
+            syncRenderState()
             syncNowPlayingIfNeeded()
         }
     }
@@ -38,8 +130,9 @@ final class MetronomeEngine: ObservableObject {
             guard timeSignature != oldValue else { return }
             MetronomeConfig.saveTimeSignature(timeSignature)
             beatIndex = 0
-            if isRunning {
-                restartScheduling()
+            syncRenderState()
+            if wantsToPlay {
+                renderState.resetTimeline(leadTime: MetronomeConfig.startLeadTime)
             }
             syncNowPlayingIfNeeded()
         }
@@ -50,17 +143,16 @@ final class MetronomeEngine: ObservableObject {
     @Published private(set) var isAccentBeat = false
     @Published private(set) var pulseToken = UUID()
 
-    private var audioEngine: AVAudioEngine?
-    private var playerNode: AVAudioPlayerNode?
-    private var dialPlayerNode: AVAudioPlayerNode?
-    private var accentBuffer: AVAudioPCMBuffer?
-    private var tickBuffer: AVAudioPCMBuffer?
-    private var dialTickBuffer: AVAudioPCMBuffer?
-    private var sampleRate: Double = 44_100
+    private nonisolated(unsafe) var audioEngine: AVAudioEngine?
+    private nonisolated(unsafe) var sourceNode: AVAudioSourceNode?
+    private nonisolated(unsafe) var dialPlayerNode: AVAudioPlayerNode?
+    private nonisolated(unsafe) var dialTickBuffer: AVAudioPCMBuffer?
+    private nonisolated(unsafe) var sampleRate: Double = 44_100
 
-    private var beatCounter = 0
-    private var nextBeatSampleTime: AVAudioFramePosition = 0
-    private var scheduledBeatCount = 0
+    private let renderState = MetronomeRenderState()
+    private var wantsToPlay = false
+    private var beatObserver: NSObjectProtocol?
+
     private var tapTimestamps: [TimeInterval] = []
     private let nowPlayingController = MetronomeNowPlayingController()
     private var isNowPlayingSessionActive = false
@@ -73,9 +165,33 @@ final class MetronomeEngine: ObservableObject {
         bpm = MetronomeConfig.savedBPM()
         timeSignature = MetronomeConfig.savedTimeSignature()
         nowPlayingController.configure(with: self)
+        beatObserver = NotificationCenter.default.addObserver(
+            forName: .metronomeBeatDidFire,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                self?.handleBeatNotification(notification)
+            }
+        }
         #if canImport(UIKit)
         hapticGenerator.prepare()
+        registerForAppLifecycle()
         #endif
+    }
+
+    deinit {
+        if let beatObserver {
+            NotificationCenter.default.removeObserver(beatObserver)
+        }
+    }
+
+    func warmUp() {
+        do {
+            try prepareEngineIfNeeded()
+        } catch {
+            Self.logger.error("Failed to warm up metronome engine: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Public Control
@@ -86,31 +202,38 @@ final class MetronomeEngine: ObservableObject {
         do {
             try AudioSessionCoordinator.activate(.metronome)
             try prepareEngineIfNeeded()
-            guard let audioEngine, let playerNode else { return }
+            guard let audioEngine else { return }
 
-            resetSchedulingState()
+            wantsToPlay = true
+            syncRenderState()
+            renderState.resetTimeline(leadTime: MetronomeConfig.startLeadTime)
+
+            renderState.lock.lock()
+            renderState.isActive = true
+            renderState.lock.unlock()
 
             if !audioEngine.isRunning {
                 audioEngine.prepare()
                 try audioEngine.start()
             }
 
-            playerNode.play()
             isRunning = true
             isNowPlayingSessionActive = true
             syncNowPlayingIfNeeded()
-            scheduleBeats(count: MetronomeConfig.beatsToScheduleAhead)
         } catch {
             Self.logger.error("Failed to start metronome: \(error.localizedDescription)")
+            wantsToPlay = false
             tearDownEngine()
             isRunning = false
         }
     }
 
     func stop() {
-        playerNode?.stop()
-        audioEngine?.stop()
-        resetSchedulingState()
+        wantsToPlay = false
+        renderState.lock.lock()
+        renderState.isActive = false
+        renderState.lock.unlock()
+
         isRunning = false
         beatIndex = 0
         isAccentBeat = false
@@ -118,7 +241,16 @@ final class MetronomeEngine: ObservableObject {
     }
 
     func endSession() {
-        stop()
+        wantsToPlay = false
+        renderState.lock.lock()
+        renderState.isActive = false
+        renderState.lock.unlock()
+
+        dialPlayerNode?.stop()
+        audioEngine?.stop()
+        isRunning = false
+        beatIndex = 0
+        isAccentBeat = false
         isNowPlayingSessionActive = false
         nowPlayingController.clear()
     }
@@ -163,6 +295,16 @@ final class MetronomeEngine: ObservableObject {
         }
     }
 
+    func prepareForBackground() {
+        guard wantsToPlay else { return }
+        resumePlaybackIfNeeded()
+    }
+
+    func recoverPlaybackIfNeeded() {
+        guard wantsToPlay else { return }
+        resumePlaybackIfNeeded()
+    }
+
     func playDialTick() {
         do {
             try AudioSessionCoordinator.activate(.metronome)
@@ -179,11 +321,6 @@ final class MetronomeEngine: ObservableObject {
             }
 
             dialPlayerNode.scheduleBuffer(dialTickBuffer, at: nil, options: [])
-
-            #if canImport(UIKit)
-            let generator = UIImpactFeedbackGenerator(style: .light)
-            generator.impactOccurred(intensity: 0.55)
-            #endif
         } catch {
             Self.logger.error("Failed to play dial tick: \(error.localizedDescription)")
         }
@@ -192,20 +329,15 @@ final class MetronomeEngine: ObservableObject {
     // MARK: - Engine Setup
 
     private func prepareEngineIfNeeded() throws {
-        if audioEngine != nil,
-           accentBuffer != nil,
-           tickBuffer != nil,
-           dialTickBuffer != nil {
+        if audioEngine != nil, sourceNode != nil, dialTickBuffer != nil {
             return
         }
 
         tearDownEngine()
 
         let engine = AVAudioEngine()
-        let player = AVAudioPlayerNode()
         let dialPlayer = AVAudioPlayerNode()
-        engine.attach(player)
-        engine.attach(dialPlayer)
+        let state = renderState
 
         let outputFormat = engine.outputNode.outputFormat(forBus: 0)
         sampleRate = outputFormat.sampleRate > 0 ? outputFormat.sampleRate : 44_100
@@ -215,18 +347,17 @@ final class MetronomeEngine: ObservableObject {
             throw MetronomeEngineError.invalidAudioFormat
         }
 
-        accentBuffer = makeClickBuffer(
-            format: format,
-            frequency: MetronomeConfig.accentFrequency,
-            amplitude: MetronomeConfig.accentAmplitude,
-            duration: MetronomeConfig.clickDuration
-        )
-        tickBuffer = makeClickBuffer(
-            format: format,
-            frequency: MetronomeConfig.tickFrequency,
-            amplitude: MetronomeConfig.tickAmplitude,
-            duration: MetronomeConfig.clickDuration
-        )
+        let node = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
+            let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
+            guard let buffer = bufferList.first,
+                  let pointer = buffer.mData?.assumingMemoryBound(to: Float.self) else {
+                return noErr
+            }
+
+            state.render(into: pointer, frameCount: Int(frameCount))
+            return noErr
+        }
+
         dialTickBuffer = makeClickBuffer(
             format: format,
             frequency: MetronomeConfig.dialTickFrequency,
@@ -234,27 +365,66 @@ final class MetronomeEngine: ObservableObject {
             duration: MetronomeConfig.dialTickDuration
         )
 
-        guard accentBuffer != nil, tickBuffer != nil, dialTickBuffer != nil else {
+        guard dialTickBuffer != nil else {
             throw MetronomeEngineError.bufferCreationFailed
         }
 
-        engine.connect(player, to: engine.mainMixerNode, format: format)
+        engine.attach(node)
+        engine.attach(dialPlayer)
+        engine.connect(node, to: engine.mainMixerNode, format: format)
         engine.connect(dialPlayer, to: engine.mainMixerNode, format: format)
 
+        syncClickSamples(format: format)
+
         audioEngine = engine
-        playerNode = player
+        sourceNode = node
         dialPlayerNode = dialPlayer
     }
 
+    private func syncClickSamples(format: AVAudioFormat) {
+        guard let accentBuffer = makeClickBuffer(
+            format: format,
+            frequency: MetronomeConfig.accentFrequency,
+            amplitude: MetronomeConfig.accentAmplitude,
+            duration: MetronomeConfig.clickDuration
+        ),
+        let tickBuffer = makeClickBuffer(
+            format: format,
+            frequency: MetronomeConfig.tickFrequency,
+            amplitude: MetronomeConfig.tickAmplitude,
+            duration: MetronomeConfig.clickDuration
+        ),
+        let accentData = accentBuffer.floatChannelData?[0],
+        let tickData = tickBuffer.floatChannelData?[0] else {
+            return
+        }
+
+        renderState.lock.lock()
+        renderState.sampleRate = sampleRate
+        renderState.accentSamples = Array(UnsafeBufferPointer(start: accentData, count: Int(accentBuffer.frameLength)))
+        renderState.tickSamples = Array(UnsafeBufferPointer(start: tickData, count: Int(tickBuffer.frameLength)))
+        renderState.lock.unlock()
+    }
+
+    private func syncRenderState() {
+        renderState.lock.lock()
+        renderState.bpm = bpm
+        renderState.beatsPerBar = timeSignature.beatsPerBar
+        renderState.noteValue = timeSignature.noteValue
+        renderState.sampleRate = sampleRate
+        renderState.lock.unlock()
+    }
+
     private func tearDownEngine() {
-        playerNode?.stop()
+        renderState.lock.lock()
+        renderState.isActive = false
+        renderState.lock.unlock()
+
         dialPlayerNode?.stop()
         audioEngine?.stop()
         audioEngine = nil
-        playerNode = nil
+        sourceNode = nil
         dialPlayerNode = nil
-        accentBuffer = nil
-        tickBuffer = nil
         dialTickBuffer = nil
     }
 
@@ -263,80 +433,39 @@ final class MetronomeEngine: ObservableObject {
         case bufferCreationFailed
     }
 
-    // MARK: - Scheduling
+    private func resumePlaybackIfNeeded() {
+        do {
+            try AudioSessionCoordinator.activate(.metronome)
+            try prepareEngineIfNeeded()
+            guard let audioEngine else { return }
 
-    private func resetSchedulingState() {
-        beatCounter = 0
-        nextBeatSampleTime = 0
-        scheduledBeatCount = 0
-        beatIndex = 0
-        isAccentBeat = false
-    }
+            syncRenderState()
 
-    private func restartScheduling() {
-        playerNode?.stop()
-        resetSchedulingState()
-        playerNode?.play()
-        scheduleBeats(count: MetronomeConfig.beatsToScheduleAhead)
-    }
+            renderState.lock.lock()
+            renderState.isActive = true
+            renderState.lock.unlock()
 
-    private func scheduleBeats(count: Int) {
-        guard let playerNode else { return }
-
-        if nextBeatSampleTime == 0 {
-            nextBeatSampleTime = resolveAnchorSampleTime(for: playerNode)
-        }
-
-        for _ in 0..<count {
-            scheduleNextBeat()
-        }
-    }
-
-    private func resolveAnchorSampleTime(for playerNode: AVAudioPlayerNode) -> AVAudioFramePosition {
-        let leadFrames = AVAudioFramePosition(MetronomeConfig.startLeadTime * sampleRate)
-
-        if let lastRenderTime = playerNode.lastRenderTime,
-           let anchorTime = playerNode.playerTime(forNodeTime: lastRenderTime) {
-            return anchorTime.sampleTime + leadFrames
-        }
-
-        return leadFrames
-    }
-
-    private func scheduleNextBeat() {
-        guard isRunning,
-              let playerNode,
-              let accentBuffer,
-              let tickBuffer else { return }
-
-        let beatInBar = beatCounter % timeSignature.beatsPerBar
-        let isAccent = beatInBar == 0
-        let buffer = isAccent ? accentBuffer : tickBuffer
-        let scheduledBeat = beatCounter
-        let scheduledAccent = isAccent
-        let scheduledBeatInBar = beatInBar
-
-        let beatTime = AVAudioTime(sampleTime: nextBeatSampleTime, atRate: sampleRate)
-        let framesPerBeat = AVAudioFramePosition(
-            MetronomeConfig.beatInterval(for: bpm, timeSignature: timeSignature) * sampleRate
-        )
-        nextBeatSampleTime += framesPerBeat
-        beatCounter += 1
-        scheduledBeatCount += 1
-
-        playerNode.scheduleBuffer(buffer, at: beatTime, options: []) { [weak self] in
-            Task { @MainActor in
-                self?.handleBeatPlayed(
-                    beatInBar: scheduledBeatInBar,
-                    isAccent: scheduledAccent,
-                    scheduledBeat: scheduledBeat
-                )
+            if !audioEngine.isRunning {
+                audioEngine.prepare()
+                try audioEngine.start()
             }
+
+            isRunning = true
+            isNowPlayingSessionActive = true
+            syncNowPlayingIfNeeded()
+        } catch {
+            Self.logger.error("Failed to resume metronome playback: \(error.localizedDescription)")
         }
     }
 
-    private func handleBeatPlayed(beatInBar: Int, isAccent: Bool, scheduledBeat: Int) {
-        guard isRunning else { return }
+    private func handleBeatNotification(_ notification: Notification) {
+        guard isRunning, wantsToPlay else { return }
+
+        guard let userInfo = notification.userInfo,
+              let beatInBar = userInfo[MetronomeBeatNotificationKey.beatInBar] as? Int,
+              let isAccent = userInfo[MetronomeBeatNotificationKey.isAccent] as? Bool else {
+            return
+        }
 
         beatIndex = beatInBar
         isAccentBeat = isAccent
@@ -347,12 +476,85 @@ final class MetronomeEngine: ObservableObject {
             hapticGenerator.impactOccurred(intensity: 0.9)
             #endif
         }
+    }
 
-        scheduledBeatCount -= 1
-        if scheduledBeatCount < MetronomeConfig.beatsToScheduleAhead {
-            scheduleNextBeat()
+    // MARK: - Audio Session
+
+    #if canImport(UIKit)
+    private func registerForAppLifecycle() {
+        let center = NotificationCenter.default
+
+        center.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.prepareForBackground()
+            }
+        }
+
+        center.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.prepareForBackground()
+            }
+        }
+
+        center.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.recoverPlaybackIfNeeded()
+            }
+        }
+
+        center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                self?.handleAudioInterruption(notification)
+            }
+        }
+
+        center.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard self?.wantsToPlay == true else { return }
+                self?.tearDownEngine()
+                self?.resumePlaybackIfNeeded()
+            }
         }
     }
+
+    private func handleAudioInterruption(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+
+        switch type {
+        case .began:
+            break
+        case .ended:
+            guard wantsToPlay else { return }
+            resumePlaybackIfNeeded()
+        @unknown default:
+            break
+        }
+    }
+    #endif
 
     // MARK: - Click Synthesis
 
@@ -385,7 +587,7 @@ final class MetronomeEngine: ObservableObject {
         nowPlayingController.update(
             bpm: bpm,
             timeSignature: timeSignature,
-            isRunning: isRunning
+            isRunning: wantsToPlay
         )
     }
 }

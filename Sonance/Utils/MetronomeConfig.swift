@@ -89,7 +89,22 @@ enum MetronomeConfig {
     static let tapTempoWindow: TimeInterval = 2.0
     static let minTapCount = 2
 
-    static let beatsToScheduleAhead = 8
+    static let minimumScheduledBeats = 8
+    static let initialScheduledBeats = 16
+    static let maxRefillBatchSize = 128
+    /// Extra beats queued when entering background so playback survives suspension.
+    static let scheduledLeadTime: TimeInterval = 600
+
+    static func initialBeatsToSchedule() -> Int {
+        initialScheduledBeats
+    }
+
+    static func beatsToSchedule(for bpm: Double, timeSignature: TimeSignature) -> Int {
+        let interval = beatInterval(for: bpm, timeSignature: timeSignature)
+        guard interval > 0 else { return minimumScheduledBeats }
+        return max(minimumScheduledBeats, Int(ceil(scheduledLeadTime / interval)))
+    }
+
     static let startLeadTime: TimeInterval = 0.05
 
     static let accentFrequency: Double = 1_000
