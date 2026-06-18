@@ -26,12 +26,13 @@ enum TimeSignature: String, CaseIterable, Identifiable, Codable {
 }
 
 enum MetronomeConfig {
-    static let minBPM: Double = 40
+    static let minBPM: Double = 10
     static let maxBPM: Double = 240
     static let defaultBPM: Double = 120
     static let defaultTimeSignature: TimeSignature = .fourFour
 
     static let bpmStep: Double = 1
+    static let knobDegreesPerBPM: Double = 4.5
     static let tapTempoWindow: TimeInterval = 2.0
     static let minTapCount = 2
 
@@ -43,6 +44,10 @@ enum MetronomeConfig {
     static let clickDuration: TimeInterval = 0.04
     static let accentAmplitude: Float = 0.9
     static let tickAmplitude: Float = 0.55
+
+    static let dialTickFrequency: Double = 1_450
+    static let dialTickDuration: TimeInterval = 0.018
+    static let dialTickAmplitude: Float = 0.42
 
     private static let bpmKey = "metronomeBPM"
     private static let timeSignatureKey = "metronomeTimeSignature"

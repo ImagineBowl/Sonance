@@ -50,8 +50,10 @@ final class MetronomeEngine: ObservableObject {
 
     private var audioEngine: AVAudioEngine?
     private var playerNode: AVAudioPlayerNode?
+    private var dialPlayerNode: AVAudioPlayerNode?
     private var accentBuffer: AVAudioPCMBuffer?
     private var tickBuffer: AVAudioPCMBuffer?
+    private var dialTickBuffer: AVAudioPCMBuffer?
     private var sampleRate: Double = 44_100
 
     private var beatCounter = 0
@@ -82,12 +84,15 @@ final class MetronomeEngine: ObservableObject {
             guard let audioEngine, let playerNode else { return }
 
             resetSchedulingState()
-            audioEngine.prepare()
-            try audioEngine.start()
-            playerNode.play()
 
-            scheduleBeats(count: MetronomeConfig.beatsToScheduleAhead)
+            if !audioEngine.isRunning {
+                audioEngine.prepare()
+                try audioEngine.start()
+            }
+
+            playerNode.play()
             isRunning = true
+            scheduleBeats(count: MetronomeConfig.beatsToScheduleAhead)
         } catch {
             Self.logger.error("Failed to start metronome: \(error.localizedDescription)")
             tearDownEngine()
@@ -113,11 +118,11 @@ final class MetronomeEngine: ObservableObject {
     }
 
     func incrementBPM(by amount: Double = MetronomeConfig.bpmStep) {
-        bpm = min(bpm + amount, MetronomeConfig.maxBPM)
+        setBPM(bpm + amount, playTick: true)
     }
 
     func decrementBPM(by amount: Double = MetronomeConfig.bpmStep) {
-        bpm = max(bpm - amount, MetronomeConfig.minBPM)
+        setBPM(bpm - amount, playTick: true)
     }
 
     func tapTempo() {
@@ -132,13 +137,51 @@ final class MetronomeEngine: ObservableObject {
         guard averageInterval > 0 else { return }
 
         let tappedBPM = 60.0 / averageInterval
-        bpm = min(max(tappedBPM, MetronomeConfig.minBPM), MetronomeConfig.maxBPM)
+        setBPM(tappedBPM, playTick: true)
+    }
+
+    func setBPM(_ value: Double, playTick: Bool = false) {
+        let clamped = min(max(value, MetronomeConfig.minBPM), MetronomeConfig.maxBPM)
+        let previous = Int(bpm.rounded())
+        bpm = clamped
+        if playTick, Int(clamped.rounded()) != previous {
+            playDialTick()
+        }
+    }
+
+    func playDialTick() {
+        do {
+            try AudioSessionCoordinator.activate(.metronome)
+            try prepareEngineIfNeeded()
+            guard let audioEngine, let dialPlayerNode, let dialTickBuffer else { return }
+
+            if !audioEngine.isRunning {
+                audioEngine.prepare()
+                try audioEngine.start()
+            }
+
+            if !dialPlayerNode.isPlaying {
+                dialPlayerNode.play()
+            }
+
+            dialPlayerNode.scheduleBuffer(dialTickBuffer, at: nil, options: [])
+
+            #if canImport(UIKit)
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred(intensity: 0.55)
+            #endif
+        } catch {
+            Self.logger.error("Failed to play dial tick: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Engine Setup
 
     private func prepareEngineIfNeeded() throws {
-        if audioEngine != nil, accentBuffer != nil, tickBuffer != nil {
+        if audioEngine != nil,
+           accentBuffer != nil,
+           tickBuffer != nil,
+           dialTickBuffer != nil {
             return
         }
 
@@ -146,7 +189,9 @@ final class MetronomeEngine: ObservableObject {
 
         let engine = AVAudioEngine()
         let player = AVAudioPlayerNode()
+        let dialPlayer = AVAudioPlayerNode()
         engine.attach(player)
+        engine.attach(dialPlayer)
 
         let outputFormat = engine.outputNode.outputFormat(forBus: 0)
         sampleRate = outputFormat.sampleRate > 0 ? outputFormat.sampleRate : 44_100
@@ -159,31 +204,44 @@ final class MetronomeEngine: ObservableObject {
         accentBuffer = makeClickBuffer(
             format: format,
             frequency: MetronomeConfig.accentFrequency,
-            amplitude: MetronomeConfig.accentAmplitude
+            amplitude: MetronomeConfig.accentAmplitude,
+            duration: MetronomeConfig.clickDuration
         )
         tickBuffer = makeClickBuffer(
             format: format,
             frequency: MetronomeConfig.tickFrequency,
-            amplitude: MetronomeConfig.tickAmplitude
+            amplitude: MetronomeConfig.tickAmplitude,
+            duration: MetronomeConfig.clickDuration
+        )
+        dialTickBuffer = makeClickBuffer(
+            format: format,
+            frequency: MetronomeConfig.dialTickFrequency,
+            amplitude: MetronomeConfig.dialTickAmplitude,
+            duration: MetronomeConfig.dialTickDuration
         )
 
-        guard accentBuffer != nil, tickBuffer != nil else {
+        guard accentBuffer != nil, tickBuffer != nil, dialTickBuffer != nil else {
             throw MetronomeEngineError.bufferCreationFailed
         }
 
         engine.connect(player, to: engine.mainMixerNode, format: format)
+        engine.connect(dialPlayer, to: engine.mainMixerNode, format: format)
 
         audioEngine = engine
         playerNode = player
+        dialPlayerNode = dialPlayer
     }
 
     private func tearDownEngine() {
         playerNode?.stop()
+        dialPlayerNode?.stop()
         audioEngine?.stop()
         audioEngine = nil
         playerNode = nil
+        dialPlayerNode = nil
         accentBuffer = nil
         tickBuffer = nil
+        dialTickBuffer = nil
     }
 
     private enum MetronomeEngineError: Error {
@@ -212,16 +270,23 @@ final class MetronomeEngine: ObservableObject {
         guard let playerNode else { return }
 
         if nextBeatSampleTime == 0 {
-            guard let anchorTime = playerNode.playerTime(forNodeTime: playerNode.lastRenderTime ?? AVAudioTime(sampleTime: 0, atRate: sampleRate)) else {
-                return
-            }
-            let leadFrames = AVAudioFramePosition(MetronomeConfig.startLeadTime * sampleRate)
-            nextBeatSampleTime = anchorTime.sampleTime + leadFrames
+            nextBeatSampleTime = resolveAnchorSampleTime(for: playerNode)
         }
 
         for _ in 0..<count {
             scheduleNextBeat()
         }
+    }
+
+    private func resolveAnchorSampleTime(for playerNode: AVAudioPlayerNode) -> AVAudioFramePosition {
+        let leadFrames = AVAudioFramePosition(MetronomeConfig.startLeadTime * sampleRate)
+
+        if let lastRenderTime = playerNode.lastRenderTime,
+           let anchorTime = playerNode.playerTime(forNodeTime: lastRenderTime) {
+            return anchorTime.sampleTime + leadFrames
+        }
+
+        return leadFrames
     }
 
     private func scheduleNextBeat() {
@@ -278,9 +343,10 @@ final class MetronomeEngine: ObservableObject {
     private func makeClickBuffer(
         format: AVAudioFormat,
         frequency: Double,
-        amplitude: Float
+        amplitude: Float,
+        duration: TimeInterval = MetronomeConfig.clickDuration
     ) -> AVAudioPCMBuffer? {
-        let frameCount = AVAudioFrameCount(MetronomeConfig.clickDuration * sampleRate)
+        let frameCount = AVAudioFrameCount(duration * sampleRate)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
               let channelData = buffer.floatChannelData?[0] else {
             return nil

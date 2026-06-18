@@ -28,6 +28,7 @@
 		5DF1A0152F00000B0000000B /* MetronomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0142F00000B0000000B /* MetronomeEngine.swift */; };
 		5DF1A0172F00000C0000000C /* MetronomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0162F00000C0000000C /* MetronomeView.swift */; };
 		5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */; };
+		5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 		5DF1A0142F00000B0000000B /* MetronomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeEngine.swift; sourceTree = "<group>"; };
 		5DF1A0162F00000C0000000C /* MetronomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeView.swift; sourceTree = "<group>"; };
 		5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeBeatIndicator.swift; sourceTree = "<group>"; };
+		5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTempoKnob.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -112,6 +114,7 @@
 			isa = PBXGroup;
 			children = (
 				5DF1A0162F00000C0000000C /* MetronomeView.swift */,
+				5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */,
 				5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */,
 			);
 			path = Metronome;
@@ -226,6 +229,7 @@
 				5DF1A0152F00000B0000000B /* MetronomeEngine.swift in Sources */,
 				5DF1A0172F00000C0000000C /* MetronomeView.swift in Sources */,
 				5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */,
+				5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

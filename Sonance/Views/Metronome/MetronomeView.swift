@@ -19,8 +19,8 @@ struct MetronomeView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                bpmDisplayView
-                    .padding(.bottom, TunerLayout.isPad ? 32 : 24)
+                MetronomeTempoKnob(engine: engine)
+                    .padding(.bottom, TunerLayout.isPad ? 28 : 20)
 
                 MetronomeBeatIndicator(
                     beatIndex: engine.beatIndex,
@@ -29,10 +29,10 @@ struct MetronomeView: View {
                     isRunning: engine.isRunning,
                     pulseToken: engine.pulseToken
                 )
-                .padding(.vertical, TunerLayout.isPad ? 40 : 28)
+                .padding(.vertical, TunerLayout.isPad ? 24 : 16)
 
                 beatDotsView
-                    .padding(.bottom, TunerLayout.isPad ? 36 : 24)
+                    .padding(.bottom, TunerLayout.isPad ? 24 : 16)
 
                 controlsCard
 
@@ -52,51 +52,6 @@ struct MetronomeView: View {
         engine.isRunning ? Color.accentColor.opacity(0.85) : Color(red: 0.12, green: 0.14, blue: 0.18)
     }
 
-    private var bpmDisplayView: some View {
-        VStack(spacing: 12) {
-            HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Image(systemName: "metronome")
-                    .font(.system(size: TunerLayout.isPad ? 28 : 22, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.8))
-                    .accessibilityHidden(true)
-
-                Text("\(Int(engine.bpm.rounded()))")
-                    .font(.system(size: TunerLayout.isPad ? 88 : 72, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.white)
-                    .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.15), value: engine.bpm)
-
-                Text("BPM")
-                    .font(.system(size: TunerLayout.isPad ? 28 : 22, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.75))
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(Int(engine.bpm.rounded())) beats per minute")
-
-            HStack(spacing: 20) {
-                bpmAdjustButton(label: "Decrease BPM", systemImage: "minus") {
-                    engine.decrementBPM()
-                }
-
-                bpmAdjustButton(label: "Increase BPM", systemImage: "plus") {
-                    engine.incrementBPM()
-                }
-            }
-        }
-    }
-
-    private func bpmAdjustButton(label: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.white)
-                .frame(width: 52, height: 52)
-                .background(Color.white.opacity(0.18))
-                .clipShape(Circle())
-        }
-        .accessibilityLabel(label)
-    }
-
     private var beatDotsView: some View {
         HStack(spacing: 10) {
             ForEach(0..<engine.timeSignature.beatsPerBar, id: \.self) { index in
@@ -111,62 +66,36 @@ struct MetronomeView: View {
     }
 
     private var controlsCard: some View {
-        VStack(spacing: 16) {
+        HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Tempo", systemImage: "slider.horizontal.3")
+                Label("Time Signature", systemImage: "music.note")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.9))
 
-                Slider(
-                    value: $engine.bpm,
-                    in: MetronomeConfig.minBPM...MetronomeConfig.maxBPM,
-                    step: MetronomeConfig.bpmStep
-                ) {
-                    Text("BPM")
-                } minimumValueLabel: {
-                    Text("\(Int(MetronomeConfig.minBPM))")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.65))
-                } maximumValueLabel: {
-                    Text("\(Int(MetronomeConfig.maxBPM))")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.65))
+                Picker("Time Signature", selection: $engine.timeSignature) {
+                    ForEach(TimeSignature.allCases) { signature in
+                        Text(signature.displayName).tag(signature)
+                    }
                 }
-                .tint(Color.white)
-                .accessibilityIdentifier("metronomeBPMSlider")
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("metronomeTimeSignaturePicker")
             }
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("Time", systemImage: "music.note")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.9))
-
-                    Picker("Time Signature", selection: $engine.timeSignature) {
-                        ForEach(TimeSignature.allCases) { signature in
-                            Text(signature.displayName).tag(signature)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("metronomeTimeSignaturePicker")
+            Button(action: engine.tapTempo) {
+                VStack(spacing: 4) {
+                    Image(systemName: "hand.tap.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                    Text("Tap")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
                 }
-
-                Button(action: engine.tapTempo) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "hand.tap.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                        Text("Tap")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundStyle(Color.white)
-                    .frame(width: 64, height: 64)
-                    .background(Color.white.opacity(0.18))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-                .accessibilityLabel("Tap tempo")
-                .accessibilityHint("Tap repeatedly to set the beats per minute")
-                .accessibilityIdentifier("metronomeTapTempoButton")
+                .foregroundStyle(Color.white)
+                .frame(width: 64, height: 64)
+                .background(Color.white.opacity(0.18))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            .accessibilityLabel("Tap tempo")
+            .accessibilityHint("Tap repeatedly to set the beats per minute")
+            .accessibilityIdentifier("metronomeTapTempoButton")
         }
         .padding(14)
         .background(Color.black.opacity(0.18))
