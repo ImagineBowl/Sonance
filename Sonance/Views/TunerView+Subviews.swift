@@ -222,7 +222,12 @@ extension TunerView {
                     .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                     .offset(y: -needleOffset)
                     .rotationEffect(.degrees(needleAngle))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.7), value: detectedNote.offset)
+                    .animation(
+                        audioAnalyzer.instrumentMode == .bass
+                            ? .spring(response: 0.55, dampingFraction: 0.86)
+                            : .spring(response: 0.4, dampingFraction: 0.7),
+                        value: detectedNote.offset
+                    )
             } else {
                 NeedleShapeWithRoundedBase()
                     .fill(Color.white.opacity(0.3))

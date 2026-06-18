@@ -128,6 +128,16 @@ enum TunerConfig {
     /// EMA weight for new samples while locked (0–1)
     static let frequencySmoothingFactor: Double = 0.35
 
+    /// Stronger lock smoothing for bass — larger buffers update less often
+    static let bassFrequencySmoothingFactor: Double = 0.2
+
+    /// EMA weight for bass cents readout / needle offset
+    static let bassOffsetSmoothingFactor: Double = 0.28
+
+    static func frequencySmoothingFactor(for mode: InstrumentMode) -> Double {
+        mode == .bass ? bassFrequencySmoothingFactor : frequencySmoothingFactor
+    }
+
     // MARK: - Harmonic Correction
 
     /// Apply subharmonic correction above this frequency

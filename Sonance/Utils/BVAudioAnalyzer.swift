@@ -59,6 +59,8 @@ final class AudioAnalyzer: ObservableObject {
     private var lastCandidateMidiNote: Int?
     private var unlockCount = 0
     private var smoothedFrequency: Double = 0
+    private var smoothedNeedleOffset: Double = 0
+    private var smoothedNeedleNoteKey = ""
 
     @Published var frequency: Double = 0.0
     @Published var isRunning: Bool = false
@@ -132,9 +134,15 @@ final class AudioAnalyzer: ObservableObject {
         lastCandidateMidiNote = nil
         unlockCount = 0
         smoothedFrequency = 0
+        resetDisplaySmoothing()
         DispatchQueue.main.async {
             self.isNoteLocked = false
         }
+    }
+
+    private func resetDisplaySmoothing() {
+        smoothedNeedleOffset = 0
+        smoothedNeedleNoteKey = ""
     }
 
     // MARK: - Permission Handling
@@ -626,7 +634,7 @@ final class AudioAnalyzer: ObservableObject {
                 unlockCount = 0
             }
 
-            let alpha = TunerConfig.frequencySmoothingFactor
+            let alpha = TunerConfig.frequencySmoothingFactor(for: instrumentMode)
             smoothedFrequency = smoothedFrequency > 0
                 ? alpha * rawFrequency + (1 - alpha) * smoothedFrequency
                 : rawFrequency
@@ -673,6 +681,36 @@ final class AudioAnalyzer: ObservableObject {
         return frequencyToNote(frequency: frequency)
     }
 
+    private func noteForDisplay(_ note: DetectedNote) -> DetectedNote {
+        guard note.isDetected else {
+            resetDisplaySmoothing()
+            return .empty
+        }
+
+        guard instrumentMode == .bass else {
+            smoothedNeedleOffset = note.offset
+            smoothedNeedleNoteKey = note.displayName
+            return note
+        }
+
+        let noteKey = note.displayName
+        if noteKey != smoothedNeedleNoteKey {
+            smoothedNeedleOffset = note.offset
+            smoothedNeedleNoteKey = noteKey
+            return note
+        }
+
+        let alpha = TunerConfig.bassOffsetSmoothingFactor
+        smoothedNeedleOffset += alpha * (note.offset - smoothedNeedleOffset)
+
+        return DetectedNote(
+            note: note.note,
+            octave: note.octave,
+            offset: smoothedNeedleOffset,
+            frequency: note.frequency
+        )
+    }
+
     private func deliverResults(amplitude: Float, frequency: Double) {
         pendingAmplitude = amplitude
         pendingFrequency = frequency
@@ -683,7 +721,7 @@ final class AudioAnalyzer: ObservableObject {
         lastUIUpdateTime = now
         let amplitudeToPublish = pendingAmplitude
         let frequencyToPublish = pendingFrequency
-        let noteToPublish = resolvedDetectedNote(for: frequencyToPublish)
+        let noteToPublish = noteForDisplay(resolvedDetectedNote(for: frequencyToPublish))
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
