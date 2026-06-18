@@ -29,6 +29,7 @@
 		5DF1A0172F00000C0000000C /* MetronomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0162F00000C0000000C /* MetronomeView.swift */; };
 		5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */; };
 		5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */; };
+		5DF1A01F2F00001000000010 /* MetronomeTimeSignatureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +56,7 @@
 		5DF1A0162F00000C0000000C /* MetronomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeView.swift; sourceTree = "<group>"; };
 		5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeBeatIndicator.swift; sourceTree = "<group>"; };
 		5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTempoKnob.swift; sourceTree = "<group>"; };
+		5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTimeSignatureSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,9 +90,9 @@
 			isa = PBXGroup;
 			children = (
 				5D9A21652D956A53000F0EC2 /* Utils */,
+				5D9A21682D956AF3000F0EC2 /* Views */,
 				5D9A21562D9568BA000F0EC2 /* SonanceApp.swift */,
 				5DF1A0022F00000200000002 /* LaunchScreen.storyboard */,
-				5D9A21682D956AF3000F0EC2 /* Views */,
 				5D9A215A2D9568BB000F0EC2 /* Assets.xcassets */,
 				5D9A215D2D9568BB000F0EC2 /* Preview Assets.xcassets */,
 				5DF1A0002F00000100000001 /* PrivacyInfo.xcprivacy */,
@@ -110,16 +112,6 @@
 			path = Utils;
 			sourceTree = "<group>";
 		};
-		5DF1A01A2F00000E0000000E /* Metronome */ = {
-			isa = PBXGroup;
-			children = (
-				5DF1A0162F00000C0000000C /* MetronomeView.swift */,
-				5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */,
-				5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */,
-			);
-			path = Metronome;
-			sourceTree = "<group>";
-		};
 		5D9A21682D956AF3000F0EC2 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -135,6 +127,17 @@
 				5D9A21812D95B2C5000F0EC2 /* BVCustomTunerNeedleView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		5DF1A01A2F00000E0000000E /* Metronome */ = {
+			isa = PBXGroup;
+			children = (
+				5DF1A0162F00000C0000000C /* MetronomeView.swift */,
+				5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */,
+				5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */,
+				5DF1A0182F00000D0000000D /* MetronomeBeatIndicator.swift */,
+			);
+			path = Metronome;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -230,6 +233,7 @@
 				5DF1A0172F00000C0000000C /* MetronomeView.swift in Sources */,
 				5DF1A0192F00000D0000000D /* MetronomeBeatIndicator.swift in Sources */,
 				5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */,
+				5DF1A01F2F00001000000010 /* MetronomeTimeSignatureSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MetronomeView: View {
     @ObservedObject var engine: MetronomeEngine
+    @State private var isTimeSignatureSheetPresented = false
 
     var body: some View {
         ZStack {
@@ -46,6 +47,9 @@ struct MetronomeView: View {
         .onDisappear {
             engine.stop()
         }
+        .sheet(isPresented: $isTimeSignatureSheetPresented) {
+            MetronomeTimeSignatureSheet(timeSignature: $engine.timeSignature)
+        }
     }
 
     private var backgroundColor: Color {
@@ -67,19 +71,24 @@ struct MetronomeView: View {
 
     private var controlsCard: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Time Signature", systemImage: "music.note")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.9))
+            Button {
+                isTimeSignatureSheetPresented = true
+            } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Time Signature", systemImage: "music.note")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.85))
 
-                Picker("Time Signature", selection: $engine.timeSignature) {
-                    ForEach(TimeSignature.allCases) { signature in
-                        Text(signature.displayName).tag(signature)
-                    }
+                    Text(engine.timeSignature.displayName)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("metronomeTimeSignaturePicker")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
             }
+            .accessibilityLabel("Time signature \(engine.timeSignature.displayName)")
+            .accessibilityHint("Opens time signature settings")
+            .accessibilityIdentifier("metronomeTimeSignatureButton")
 
             Button(action: engine.tapTempo) {
                 VStack(spacing: 4) {

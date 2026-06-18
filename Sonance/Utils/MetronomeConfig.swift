@@ -7,21 +7,74 @@
 
 import Foundation
 
-enum TimeSignature: String, CaseIterable, Identifiable, Codable {
-    case fourFour = "4/4"
-    case threeFour = "3/4"
-    case sixEight = "6/8"
+struct TimeSignature: Equatable, Codable, Identifiable {
+    var beats: Int
+    var noteValue: Int
 
     var id: String { rawValue }
-
+    var rawValue: String { "\(beats)/\(noteValue)" }
     var displayName: String { rawValue }
+    var beatsPerBar: Int { beats }
 
-    var beatsPerBar: Int {
-        switch self {
-        case .fourFour: return 4
-        case .threeFour: return 3
-        case .sixEight: return 6
+    static let `default` = TimeSignature(beats: 4, noteValue: 4)
+    static let minBeats = 1
+    static let maxBeats = 12
+    static let allowedNoteValues = [2, 4, 8, 16]
+
+    static let presets: [TimeSignature] = [
+        TimeSignature(beats: 2, noteValue: 4),
+        TimeSignature(beats: 3, noteValue: 4),
+        TimeSignature(beats: 4, noteValue: 4),
+        TimeSignature(beats: 5, noteValue: 4),
+        TimeSignature(beats: 6, noteValue: 8),
+        TimeSignature(beats: 7, noteValue: 8),
+        TimeSignature(beats: 9, noteValue: 8),
+        TimeSignature(beats: 12, noteValue: 8)
+    ]
+
+    init(beats: Int, noteValue: Int) {
+        self.beats = min(max(beats, Self.minBeats), Self.maxBeats)
+        self.noteValue = Self.normalizedNoteValue(noteValue)
+    }
+
+    init?(rawValue: String) {
+        let parts = rawValue.split(separator: "/")
+        guard parts.count == 2,
+              let beats = Int(parts[0]),
+              let noteValue = Int(parts[1]) else {
+            return nil
         }
+        self.init(beats: beats, noteValue: noteValue)
+    }
+
+    mutating func incrementBeats() {
+        beats = min(beats + 1, Self.maxBeats)
+    }
+
+    mutating func decrementBeats() {
+        beats = max(beats - 1, Self.minBeats)
+    }
+
+    mutating func incrementNoteValue() {
+        noteValue = Self.nextNoteValue(after: noteValue)
+    }
+
+    mutating func decrementNoteValue() {
+        noteValue = Self.previousNoteValue(before: noteValue)
+    }
+
+    private static func normalizedNoteValue(_ value: Int) -> Int {
+        allowedNoteValues.min(by: { abs($0 - value) < abs($1 - value) }) ?? 4
+    }
+
+    private static func nextNoteValue(after value: Int) -> Int {
+        guard let index = allowedNoteValues.firstIndex(of: normalizedNoteValue(value)) else { return 4 }
+        return allowedNoteValues[(index + 1) % allowedNoteValues.count]
+    }
+
+    private static func previousNoteValue(before value: Int) -> Int {
+        guard let index = allowedNoteValues.firstIndex(of: normalizedNoteValue(value)) else { return 4 }
+        return allowedNoteValues[(index - 1 + allowedNoteValues.count) % allowedNoteValues.count]
     }
 }
 
@@ -29,7 +82,7 @@ enum MetronomeConfig {
     static let minBPM: Double = 10
     static let maxBPM: Double = 240
     static let defaultBPM: Double = 120
-    static let defaultTimeSignature: TimeSignature = .fourFour
+    static let defaultTimeSignature: TimeSignature = .default
 
     static let bpmStep: Double = 1
     static let knobDegreesPerBPM: Double = 4.5
@@ -44,7 +97,6 @@ enum MetronomeConfig {
     static let clickDuration: TimeInterval = 0.04
     static let accentAmplitude: Float = 0.9
     static let tickAmplitude: Float = 0.55
-
     static let dialTickFrequency: Double = 1_450
     static let dialTickDuration: TimeInterval = 0.018
     static let dialTickAmplitude: Float = 0.42

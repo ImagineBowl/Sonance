@@ -5,7 +5,7 @@
 //  Created by Ahsan Minhas on 18/06/2026.
 //
 
-import AVFoundation
+@preconcurrency import AVFoundation
 import os
 #if canImport(UIKit)
 import UIKit
