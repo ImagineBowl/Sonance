@@ -31,6 +31,7 @@
 		5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A01C2F00000F0000000F /* MetronomeTempoKnob.swift */; };
 		5DF1A01F2F00001000000010 /* MetronomeTimeSignatureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */; };
 		5DF1A0212F00001100000011 /* MetronomeNowPlayingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0202F00001100000011 /* MetronomeNowPlayingController.swift */; };
+		5DF1A0232F00001300000013 /* AppStoreUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF1A0242F00001300000013 /* AppStoreUpdateChecker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		5DF1A01E2F00001000000010 /* MetronomeTimeSignatureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeTimeSignatureSheet.swift; sourceTree = "<group>"; };
 		5DF1A0202F00001100000011 /* MetronomeNowPlayingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeNowPlayingController.swift; sourceTree = "<group>"; };
 		5DF1A0222F00001200000012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5DF1A0242F00001300000013 /* AppStoreUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreUpdateChecker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +115,7 @@
 				5DF1A0122F00000A0000000A /* MetronomeConfig.swift */,
 				5DF1A0142F00000B0000000B /* MetronomeEngine.swift */,
 				5DF1A0202F00001100000011 /* MetronomeNowPlayingController.swift */,
+				5DF1A0242F00001300000013 /* AppStoreUpdateChecker.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -240,6 +243,7 @@
 				5DF1A01D2F00000F0000000F /* MetronomeTempoKnob.swift in Sources */,
 				5DF1A01F2F00001000000010 /* MetronomeTimeSignatureSheet.swift in Sources */,
 				5DF1A0212F00001100000011 /* MetronomeNowPlayingController.swift in Sources */,
+				5DF1A0232F00001300000013 /* AppStoreUpdateChecker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -18,6 +18,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var isLaunchComplete = false
     @State private var selectedTab: AppTab = .tuner
+    @State private var availableUpdate: AppStoreUpdateInfo?
+    @State private var showUpdateAlert = false
 
     var body: some View {
         ZStack {
@@ -51,9 +53,44 @@ struct RootView: View {
             if !isLaunchComplete {
                 LaunchScreenView {
                     isLaunchComplete = true
+                    presentUpdateAlertIfNeeded()
                 }
             }
         }
+        .alert("Update Available", isPresented: $showUpdateAlert) {
+            Button("Update") {
+                if let availableUpdate {
+                    AppStoreUpdateChecker.openAppStore(for: availableUpdate)
+                }
+            }
+            Button("Not Now", role: .cancel) {
+                if let availableUpdate {
+                    AppStoreUpdateChecker.dismiss(availableUpdate)
+                }
+            }
+        } message: {
+            if let availableUpdate {
+                Text("Version \(availableUpdate.storeVersion) is available on the App Store.")
+            }
+        }
+        .task {
+            await checkForAppStoreUpdate()
+        }
+    }
+
+    private func checkForAppStoreUpdate() async {
+        guard let update = await AppStoreUpdateChecker.fetchUpdateInfo(),
+              !AppStoreUpdateChecker.isDismissed(update) else {
+            return
+        }
+
+        availableUpdate = update
+        presentUpdateAlertIfNeeded()
+    }
+
+    private func presentUpdateAlertIfNeeded() {
+        guard isLaunchComplete, availableUpdate != nil else { return }
+        showUpdateAlert = true
     }
 
     private func handleTabChange(to tab: AppTab) {
