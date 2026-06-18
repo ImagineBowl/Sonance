@@ -49,6 +49,8 @@ final class AudioAnalyzer: ObservableObject {
     private var imaginaryParts: [Float] = []
     private var magnitudes: [Float] = []
     private var hanningWindow: [Float] = []
+    private var windowedSamples: [Float] = []
+    private var spectralScratch: [Float] = []
 
     // Note lock state
     private var lockedMidiNote: Int?
@@ -190,6 +192,8 @@ final class AudioAnalyzer: ObservableObject {
         realParts = [Float](repeating: 0, count: bufferSizePOT)
         imaginaryParts = [Float](repeating: 0, count: bufferSizePOT)
         magnitudes = [Float](repeating: 0, count: bufferSizePOT / 2)
+        windowedSamples = [Float](repeating: 0, count: bufferSizePOT)
+        spectralScratch = [Float](repeating: 0, count: max(1, bufferSizePOT / 2 - 5))
         hanningWindow = vDSP.window(
             ofType: Float.self,
             usingSequence: .hanningDenormalized,
@@ -358,7 +362,7 @@ final class AudioAnalyzer: ObservableObject {
         let copyCount = min(bufferLength, bufferSizePOT)
         realParts.withUnsafeMutableBufferPointer { realBuffer in
             guard let realBase = realBuffer.baseAddress else { return }
-            realBase.initialize(repeating: 0, count: bufferSizePOT)
+            vDSP_vclr(realBase, 1, vDSP_Length(bufferSizePOT))
             realBase.update(from: channelData, count: copyCount)
         }
 
@@ -369,8 +373,16 @@ final class AudioAnalyzer: ObservableObject {
 
         vDSP.multiply(hanningWindow, realParts, result: &realParts)
 
+        windowedSamples.withUnsafeMutableBufferPointer { windowBuffer in
+            realParts.withUnsafeBufferPointer { realBuffer in
+                guard let windowBase = windowBuffer.baseAddress,
+                      let realBase = realBuffer.baseAddress else { return }
+                windowBase.update(from: realBase, count: copyCount)
+            }
+        }
+
         var signalLevel: Float = 0
-        realParts.withUnsafeBufferPointer { samples in
+        windowedSamples.withUnsafeBufferPointer { samples in
             vDSP_rmsqv(samples.baseAddress!, 1, &signalLevel, vDSP_Length(copyCount))
         }
 
@@ -379,7 +391,7 @@ final class AudioAnalyzer: ObservableObject {
                 guard let realBase = realBuffer.baseAddress,
                       let imagBase = imagBuffer.baseAddress else { return }
 
-                imagBase.initialize(repeating: 0, count: bufferSizePOT)
+                vDSP_vclr(imagBase, 1, vDSP_Length(bufferSizePOT))
                 var splitComplex = DSPSplitComplex(realp: realBase, imagp: imagBase)
 
                 vDSP_fft_zip(fftSetup, &splitComplex, 1, log2n, FFTDirection(kFFTDirection_Forward))
@@ -393,14 +405,12 @@ final class AudioAnalyzer: ObservableObject {
                 }
 
                 var maxMagnitude: Float = 0
-                var meanMagnitude: Float = 0
                 magnitudes.withUnsafeBufferPointer { buffer in
                     let slice = UnsafeBufferPointer(rebasing: buffer[spectralStart...])
                     vDSP_maxv(slice.baseAddress!, 1, &maxMagnitude, vDSP_Length(spectralCount))
-                    vDSP_meanv(slice.baseAddress!, 1, &meanMagnitude, vDSP_Length(spectralCount))
                 }
-
-                let peakProminence = maxMagnitude / max(meanMagnitude, 1e-12)
+                let medianMagnitude = spectralMedian(from: magnitudes, start: spectralStart, count: spectralCount)
+                let peakProminence = maxMagnitude / max(medianMagnitude, 1e-12)
 
                 let passesLevel = signalLevel >= currentMinAmplitude
                 let passesProminence = peakProminence >= currentPeakProminence
@@ -422,12 +432,9 @@ final class AudioAnalyzer: ObservableObject {
                 let sampleRate = buffer.format.sampleRate
                 let binWidth = sampleRate / Double(bufferSizePOT)
 
-                let searchRange = lockSearchRangeHz()
-                guard let peak = findStrongestPeak(
+                guard let peak = selectAnalysisPeak(
                     magnitudes: magnitudes,
                     binWidth: binWidth,
-                    minHz: searchRange?.min,
-                    maxHz: searchRange?.max,
                     lowCutoff: lowCutoff
                 ) else {
                     if lockedTargetFrequency != nil, smoothedFrequency > 0 {
@@ -448,12 +455,14 @@ final class AudioAnalyzer: ObservableObject {
                     lowCutoff: lowCutoff
                 )
 
-                let refinedFrequency = refineFrequencyWithAutocorrelation(
-                    samples: UnsafeBufferPointer(start: realBase, count: copyCount),
-                    sampleCount: copyCount,
-                    sampleRate: sampleRate,
-                    roughFrequency: roughFrequency
-                )
+                let refinedFrequency = windowedSamples.withUnsafeBufferPointer { samples in
+                    refineFrequencyWithAutocorrelation(
+                        samples: samples,
+                        sampleCount: copyCount,
+                        sampleRate: sampleRate,
+                        roughFrequency: roughFrequency
+                    )
+                }
 
                 guard refinedFrequency >= lowCutoff,
                       refinedFrequency <= TunerConfig.highFrequencyCutoff else {
@@ -474,6 +483,60 @@ final class AudioAnalyzer: ObservableObject {
             min: lockedTargetFrequency * pow(2.0, -ratio),
             max: lockedTargetFrequency * pow(2.0, ratio)
         )
+    }
+
+    /// Picks the FFT peak to analyze. While locked, prefers the in-window peak for stability,
+    /// but falls back to the global peak when the signal clearly moved (e.g. octave jump).
+    private func selectAnalysisPeak(
+        magnitudes: [Float],
+        binWidth: Double,
+        lowCutoff: Double
+    ) -> (index: Int, magnitude: Float)? {
+        guard let globalPeak = findStrongestPeak(
+            magnitudes: magnitudes,
+            binWidth: binWidth,
+            minHz: nil,
+            maxHz: nil,
+            lowCutoff: lowCutoff
+        ) else { return nil }
+
+        guard let lockedTargetFrequency,
+              let searchRange = lockSearchRangeHz() else {
+            return globalPeak
+        }
+
+        let globalFrequency = Double(globalPeak.index) * binWidth
+        let globalDeviation = abs(TunerConfig.centsBetween(globalFrequency, and: lockedTargetFrequency))
+
+        if globalDeviation <= TunerConfig.noteLockWindowCents {
+            return findStrongestPeak(
+                magnitudes: magnitudes,
+                binWidth: binWidth,
+                minHz: searchRange.min,
+                maxHz: searchRange.max,
+                lowCutoff: lowCutoff
+            ) ?? globalPeak
+        }
+
+        if let localPeak = findStrongestPeak(
+            magnitudes: magnitudes,
+            binWidth: binWidth,
+            minHz: searchRange.min,
+            maxHz: searchRange.max,
+            lowCutoff: lowCutoff
+        ) {
+            let localFrequency = Double(localPeak.index) * binWidth
+            let localDeviation = abs(TunerConfig.centsBetween(localFrequency, and: lockedTargetFrequency))
+            let keepsLock = localDeviation <= TunerConfig.noteLockWindowCents
+                && localPeak.magnitude >= globalPeak.magnitude * TunerConfig.harmonicEnergyRatioThreshold
+
+            if keepsLock {
+                return localPeak
+            }
+        }
+
+        resetNoteLock()
+        return globalPeak
     }
 
     private func findStrongestPeak(
@@ -628,6 +691,25 @@ final class AudioAnalyzer: ObservableObject {
             self.frequency = frequencyToPublish
             self.detectedNote = noteToPublish
         }
+    }
+
+    private func spectralMedian(from magnitudes: [Float], start: Int, count: Int) -> Float {
+        guard count > 0, spectralScratch.count >= count else { return 0 }
+
+        magnitudes.withUnsafeBufferPointer { buffer in
+            spectralScratch.withUnsafeMutableBufferPointer { scratch in
+                guard let source = buffer.baseAddress?.advanced(by: start),
+                      let destination = scratch.baseAddress else { return }
+                destination.update(from: source, count: count)
+            }
+        }
+
+        spectralScratch.withUnsafeMutableBufferPointer { scratch in
+            guard let base = scratch.baseAddress else { return }
+            var slice = UnsafeMutableBufferPointer(start: base, count: count)
+            slice.sort(by: <)
+        }
+        return spectralScratch[count / 2]
     }
 
     private func logParabolicPeakInterpolation(magnitudes: [Float], maxIndex: Int) -> Float {
