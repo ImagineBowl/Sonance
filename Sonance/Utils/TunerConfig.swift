@@ -33,22 +33,26 @@ enum TunerConfig {
     static let bassBufferSize: AVAudioFrameCount = 16384
 
     /// Default input sensitivity (0 = least sensitive, 1 = most sensitive)
-    static let defaultInputSensitivity: Double = 0.84
+    /// Tuned to reject ambient noise while still catching quiet instruments.
+    static let defaultInputSensitivity: Double = 0.55
 
     /// RMS signal floor at maximum sensitivity
-    static let minAmplitudeFloor: Float = 0.00075
+    static let minAmplitudeFloor: Float = 0.0018
 
     /// RMS signal floor at minimum sensitivity
-    static let minAmplitudeCeiling: Float = 0.0195
+    static let minAmplitudeCeiling: Float = 0.022
 
     /// Input gain at minimum sensitivity
-    static let inputGainMin: Float = 1.36
+    static let inputGainMin: Float = 1.2
 
     /// Input gain at maximum sensitivity
-    static let inputGainMax: Float = 11.2
+    static let inputGainMax: Float = 6.5
 
     /// Consecutive buffers above threshold before pitch detection activates
-    static let signalHoldBuffers: Int = 2
+    static let signalHoldBuffers: Int = 3
+
+    /// Quiet buffers before clearing pitch / note lock (avoids flicker on decay)
+    static let signalDropUnlockBuffers: Int = 4
 
     /// Minimum interval between UI updates from the audio thread
     static let uiUpdateInterval: TimeInterval = 1.0 / 30.0
@@ -56,7 +60,7 @@ enum TunerConfig {
     /// Maps sensitivity to the RMS level required for detection
     static func minAmplitude(for sensitivity: Double) -> Float {
         let clamped = Float(min(max(sensitivity, 0), 1))
-        let strictness = pow(1 - clamped, 0.5)
+        let strictness = pow(1 - clamped, 0.55)
         return minAmplitudeFloor + strictness * (minAmplitudeCeiling - minAmplitudeFloor)
     }
 
@@ -69,8 +73,8 @@ enum TunerConfig {
     /// Peak must stand this many times above the spectral median
     static func peakProminenceThreshold(for sensitivity: Double) -> Float {
         let clamped = Float(min(max(sensitivity, 0), 1))
-        let strictness = pow(1 - clamped, 0.32)
-        return 0.375 + strictness * 1.65
+        let strictness = pow(1 - clamped, 0.4)
+        return 0.85 + strictness * 1.9
     }
 
     /// Fixed meter headroom above the threshold marker
@@ -105,6 +109,18 @@ enum TunerConfig {
         mode == .bass ? bassAutocorrelationSearchRatio : autocorrelationSearchRatio
     }
 
+    /// Minimum normalized autocorrelation peak to accept a pitch estimate
+    static let autocorrelationConfidenceThreshold: Float = 0.72
+
+    /// Slightly lower confidence floor for bass (weaker fundamentals)
+    static let bassAutocorrelationConfidenceThreshold: Float = 0.65
+
+    static func autocorrelationConfidenceThreshold(for mode: InstrumentMode) -> Float {
+        mode == .bass
+            ? bassAutocorrelationConfidenceThreshold
+            : autocorrelationConfidenceThreshold
+    }
+
     /// Reference frequency for A4 in Hz (standard tuning)
     static let referenceFrequency: Double = 440.0
 
@@ -114,22 +130,25 @@ enum TunerConfig {
     // MARK: - Note Lock
 
     /// Search band around locked target (± cents)
-    static let noteLockWindowCents: Double = 55.0
+    static let noteLockWindowCents: Double = 50.0
 
     /// Buffers with stable note before locking
-    static let noteLockStableBuffers: Int = 2
+    static let noteLockStableBuffers: Int = 4
 
     /// Buffers outside lock window before unlocking
-    static let noteLockUnlockBuffers: Int = 3
+    static let noteLockUnlockBuffers: Int = 4
 
     /// Max deviation from target to count toward lock acquisition
-    static let noteLockAcquireCents: Double = 40.0
+    static let noteLockAcquireCents: Double = 28.0
 
     /// EMA weight for new samples while locked (0–1)
-    static let frequencySmoothingFactor: Double = 0.35
+    static let frequencySmoothingFactor: Double = 0.28
 
     /// Stronger lock smoothing for bass — larger buffers update less often
-    static let bassFrequencySmoothingFactor: Double = 0.2
+    static let bassFrequencySmoothingFactor: Double = 0.18
+
+    /// EMA weight for standard-mode cents readout / needle offset
+    static let offsetSmoothingFactor: Double = 0.4
 
     /// EMA weight for bass cents readout / needle offset
     static let bassOffsetSmoothingFactor: Double = 0.28
@@ -138,16 +157,23 @@ enum TunerConfig {
         mode == .bass ? bassFrequencySmoothingFactor : frequencySmoothingFactor
     }
 
+    static func offsetSmoothingFactor(for mode: InstrumentMode) -> Double {
+        mode == .bass ? bassOffsetSmoothingFactor : offsetSmoothingFactor
+    }
+
     // MARK: - Harmonic Correction
 
     /// Apply subharmonic correction above this frequency
-    static let harmonicCorrectionMinFrequency: Double = 55.0
+    static let harmonicCorrectionMinFrequency: Double = 40.0
 
-    /// Apply subharmonic correction below this frequency
-    static let harmonicCorrectionMaxFrequency: Double = 220.0
+    /// Apply subharmonic correction below this frequency (~highest practical open string / partial)
+    static let harmonicCorrectionMaxFrequency: Double = 1200.0
 
     /// Subharmonic magnitude must reach this fraction of the peak to prefer fundamental
-    static let harmonicEnergyRatioThreshold: Float = 0.22
+    static let harmonicEnergyRatioThreshold: Float = 0.18
+
+    /// Harmonic product spectrum depth (2…N) for fundamental estimation
+    static let harmonicProductSpectrumHarmonics: Int = 5
 
     // MARK: - Tuning Thresholds (in cents)
 

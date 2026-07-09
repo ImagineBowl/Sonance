@@ -40,6 +40,7 @@ final class AudioAnalyzer: ObservableObject {
     private var currentInputGain: Float = TunerConfig.inputGain(for: TunerConfig.defaultInputSensitivity)
     private var currentPeakProminence: Float = TunerConfig.peakProminenceThreshold(for: TunerConfig.defaultInputSensitivity)
     private var aboveThresholdCount = 0
+    private var belowThresholdCount = 0
     private var lastUIUpdateTime: TimeInterval = 0
     private var pendingAmplitude: Float = 0
     private var pendingFrequency: Double = 0
@@ -51,6 +52,7 @@ final class AudioAnalyzer: ObservableObject {
     private var hanningWindow: [Float] = []
     private var windowedSamples: [Float] = []
     private var spectralScratch: [Float] = []
+    private var hpsScratch: [Float] = []
 
     // Note lock state
     private var lockedMidiNote: Int?
@@ -96,7 +98,7 @@ final class AudioAnalyzer: ObservableObject {
         amplitude >= currentMinAmplitude
     }
 
-    private static let inputSensitivityKey = "inputSensitivityV2"
+    private static let inputSensitivityKey = "inputSensitivityV3"
     private static let instrumentModeKey = "instrumentMode"
 
     init() {
@@ -117,6 +119,7 @@ final class AudioAnalyzer: ObservableObject {
         currentInputGain = TunerConfig.inputGain(for: sensitivity)
         currentPeakProminence = TunerConfig.peakProminenceThreshold(for: sensitivity)
         aboveThresholdCount = 0
+        belowThresholdCount = 0
     }
 
     func unlockNote() {
@@ -202,6 +205,7 @@ final class AudioAnalyzer: ObservableObject {
         magnitudes = [Float](repeating: 0, count: bufferSizePOT / 2)
         windowedSamples = [Float](repeating: 0, count: bufferSizePOT)
         spectralScratch = [Float](repeating: 0, count: max(1, bufferSizePOT / 2 - 5))
+        hpsScratch = [Float](repeating: 0, count: bufferSizePOT / 2)
         hanningWindow = vDSP.window(
             ofType: Float.self,
             usingSequence: .hanningDenormalized,
@@ -251,6 +255,7 @@ final class AudioAnalyzer: ObservableObject {
 
         tearDownAudioEngine()
         aboveThresholdCount = 0
+        belowThresholdCount = 0
         pendingFrequency = 0
         pendingAmplitude = 0
 
@@ -306,6 +311,7 @@ final class AudioAnalyzer: ObservableObject {
     func stop() {
         audioEngine?.stop()
         aboveThresholdCount = 0
+        belowThresholdCount = 0
         resetNoteLock()
         DispatchQueue.main.async {
             self.isRunning = false
@@ -425,10 +431,20 @@ final class AudioAnalyzer: ObservableObject {
 
                 if passesLevel && passesProminence {
                     aboveThresholdCount += 1
+                    belowThresholdCount = 0
                 } else {
+                    belowThresholdCount += 1
                     aboveThresholdCount = 0
-                    resetNoteLock()
-                    deliverResults(amplitude: signalLevel, frequency: 0)
+
+                    if belowThresholdCount >= TunerConfig.signalDropUnlockBuffers {
+                        resetNoteLock()
+                        deliverResults(amplitude: signalLevel, frequency: 0)
+                    } else if lockedTargetFrequency != nil, smoothedFrequency > 0 {
+                        // Hold last stable pitch briefly through quiet gaps / string decay.
+                        deliverResults(amplitude: signalLevel, frequency: smoothedFrequency)
+                    } else {
+                        deliverResults(amplitude: signalLevel, frequency: 0)
+                    }
                     return
                 }
 
@@ -463,7 +479,7 @@ final class AudioAnalyzer: ObservableObject {
                     lowCutoff: lowCutoff
                 )
 
-                let refinedFrequency = windowedSamples.withUnsafeBufferPointer { samples in
+                let refinement = windowedSamples.withUnsafeBufferPointer { samples in
                     refineFrequencyWithAutocorrelation(
                         samples: samples,
                         sampleCount: copyCount,
@@ -471,6 +487,18 @@ final class AudioAnalyzer: ObservableObject {
                         roughFrequency: roughFrequency
                     )
                 }
+
+                let confidenceFloor = TunerConfig.autocorrelationConfidenceThreshold(for: instrumentMode)
+                guard refinement.confidence >= confidenceFloor else {
+                    if lockedTargetFrequency != nil, smoothedFrequency > 0 {
+                        deliverResults(amplitude: signalLevel, frequency: smoothedFrequency)
+                    } else {
+                        deliverResults(amplitude: signalLevel, frequency: 0)
+                    }
+                    return
+                }
+
+                let refinedFrequency = refinement.frequency
 
                 guard refinedFrequency >= lowCutoff,
                       refinedFrequency <= TunerConfig.highFrequencyCutoff else {
@@ -493,37 +521,35 @@ final class AudioAnalyzer: ObservableObject {
         )
     }
 
-    /// Picks the FFT peak to analyze. While locked, prefers the in-window peak for stability,
-    /// but falls back to the global peak when the signal clearly moved (e.g. octave jump).
+    /// Picks the FFT peak to analyze. Prefers harmonic-product-spectrum fundamentals
+    /// over the loudest partial. While locked, stays in-window unless the signal clearly moved.
     private func selectAnalysisPeak(
         magnitudes: [Float],
         binWidth: Double,
         lowCutoff: Double
     ) -> (index: Int, magnitude: Float)? {
-        guard let globalPeak = findStrongestPeak(
+        guard let fundamentalPeak = findFundamentalPeak(
             magnitudes: magnitudes,
             binWidth: binWidth,
-            minHz: nil,
-            maxHz: nil,
             lowCutoff: lowCutoff
         ) else { return nil }
 
         guard let lockedTargetFrequency,
               let searchRange = lockSearchRangeHz() else {
-            return globalPeak
+            return fundamentalPeak
         }
 
-        let globalFrequency = Double(globalPeak.index) * binWidth
-        let globalDeviation = abs(TunerConfig.centsBetween(globalFrequency, and: lockedTargetFrequency))
+        let fundamentalFrequency = Double(fundamentalPeak.index) * binWidth
+        let fundamentalDeviation = abs(TunerConfig.centsBetween(fundamentalFrequency, and: lockedTargetFrequency))
 
-        if globalDeviation <= TunerConfig.noteLockWindowCents {
+        if fundamentalDeviation <= TunerConfig.noteLockWindowCents {
             return findStrongestPeak(
                 magnitudes: magnitudes,
                 binWidth: binWidth,
                 minHz: searchRange.min,
                 maxHz: searchRange.max,
                 lowCutoff: lowCutoff
-            ) ?? globalPeak
+            ) ?? fundamentalPeak
         }
 
         if let localPeak = findStrongestPeak(
@@ -536,7 +562,7 @@ final class AudioAnalyzer: ObservableObject {
             let localFrequency = Double(localPeak.index) * binWidth
             let localDeviation = abs(TunerConfig.centsBetween(localFrequency, and: lockedTargetFrequency))
             let keepsLock = localDeviation <= TunerConfig.noteLockWindowCents
-                && localPeak.magnitude >= globalPeak.magnitude * TunerConfig.harmonicEnergyRatioThreshold
+                && localPeak.magnitude >= fundamentalPeak.magnitude * TunerConfig.harmonicEnergyRatioThreshold
 
             if keepsLock {
                 return localPeak
@@ -544,7 +570,71 @@ final class AudioAnalyzer: ObservableObject {
         }
 
         resetNoteLock()
-        return globalPeak
+        return fundamentalPeak
+    }
+
+    /// Estimates the fundamental via harmonic product spectrum, falling back to the strongest peak.
+    private func findFundamentalPeak(
+        magnitudes: [Float],
+        binWidth: Double,
+        lowCutoff: Double
+    ) -> (index: Int, magnitude: Float)? {
+        let startBin = max(5, Int(floor(lowCutoff / binWidth)))
+        let endBin = magnitudes.count - 2
+        let harmonicCount = TunerConfig.harmonicProductSpectrumHarmonics
+        let hpsEndBin = min(endBin, endBin / harmonicCount)
+
+        guard startBin <= hpsEndBin, hpsScratch.count == magnitudes.count else {
+            return findStrongestPeak(
+                magnitudes: magnitudes,
+                binWidth: binWidth,
+                minHz: nil,
+                maxHz: nil,
+                lowCutoff: lowCutoff
+            )
+        }
+
+        hpsScratch.withUnsafeMutableBufferPointer { scratch in
+            magnitudes.withUnsafeBufferPointer { source in
+                guard let destination = scratch.baseAddress,
+                      let base = source.baseAddress else { return }
+                destination.update(from: base, count: magnitudes.count)
+            }
+        }
+
+        for harmonic in 2...harmonicCount {
+            for bin in startBin...hpsEndBin {
+                let harmonicBin = bin * harmonic
+                guard harmonicBin < magnitudes.count else { break }
+                hpsScratch[bin] *= max(magnitudes[harmonicBin], 1e-12)
+            }
+        }
+
+        var bestIndex = -1
+        var bestScore: Float = 0
+        for bin in startBin...hpsEndBin {
+            let frequency = Double(bin) * binWidth
+            guard frequency >= lowCutoff,
+                  frequency <= TunerConfig.highFrequencyCutoff else { continue }
+
+            let score = hpsScratch[bin]
+            if score > bestScore {
+                bestScore = score
+                bestIndex = bin
+            }
+        }
+
+        guard bestIndex >= 0 else {
+            return findStrongestPeak(
+                magnitudes: magnitudes,
+                binWidth: binWidth,
+                minHz: nil,
+                maxHz: nil,
+                lowCutoff: lowCutoff
+            )
+        }
+
+        return (bestIndex, magnitudes[bestIndex])
     }
 
     private func findStrongestPeak(
@@ -594,13 +684,14 @@ final class AudioAnalyzer: ObservableObject {
         var bestFrequency = frequency
         var bestScore = peakMagnitude
 
-        for divisor in [2.0, 3.0] {
+        for divisor in [2.0, 3.0, 4.0] {
             let candidate = frequency / divisor
             guard candidate >= lowCutoff else { continue }
 
             let fundamentalMagnitude = magnitude(atFrequency: candidate, magnitudes: magnitudes, binWidth: binWidth)
-            let harmonicBoost = magnitude(atFrequency: candidate * 2, magnitudes: magnitudes, binWidth: binWidth) * 0.5
-            let score = fundamentalMagnitude + harmonicBoost
+            let secondHarmonic = magnitude(atFrequency: candidate * 2, magnitudes: magnitudes, binWidth: binWidth)
+            let thirdHarmonic = magnitude(atFrequency: candidate * 3, magnitudes: magnitudes, binWidth: binWidth)
+            let score = fundamentalMagnitude + secondHarmonic * 0.5 + thirdHarmonic * 0.25
 
             if fundamentalMagnitude >= peakMagnitude * TunerConfig.harmonicEnergyRatioThreshold,
                score >= bestScore {
@@ -621,7 +712,7 @@ final class AudioAnalyzer: ObservableObject {
     private func applyNoteLock(to rawFrequency: Double) -> Double {
         let roundedMidi = Int(round(TunerConfig.midiNote(for: rawFrequency)))
 
-        if let lockedMidiNote, let lockedTargetFrequency {
+        if lockedMidiNote != nil, let lockedTargetFrequency {
             let deviation = abs(TunerConfig.centsBetween(rawFrequency, and: lockedTargetFrequency))
 
             if deviation > TunerConfig.noteLockWindowCents {
@@ -687,12 +778,6 @@ final class AudioAnalyzer: ObservableObject {
             return .empty
         }
 
-        guard instrumentMode == .bass else {
-            smoothedNeedleOffset = note.offset
-            smoothedNeedleNoteKey = note.displayName
-            return note
-        }
-
         let noteKey = note.displayName
         if noteKey != smoothedNeedleNoteKey {
             smoothedNeedleOffset = note.offset
@@ -700,7 +785,7 @@ final class AudioAnalyzer: ObservableObject {
             return note
         }
 
-        let alpha = TunerConfig.bassOffsetSmoothingFactor
+        let alpha = TunerConfig.offsetSmoothingFactor(for: instrumentMode)
         smoothedNeedleOffset += alpha * (note.offset - smoothedNeedleOffset)
 
         return DetectedNote(
@@ -769,8 +854,10 @@ final class AudioAnalyzer: ObservableObject {
         sampleCount: Int,
         sampleRate: Double,
         roughFrequency: Double
-    ) -> Double {
-        guard roughFrequency > 0, sampleCount > 20 else { return roughFrequency }
+    ) -> (frequency: Double, confidence: Float) {
+        guard roughFrequency > 0, sampleCount > 20 else {
+            return (roughFrequency, 0)
+        }
 
         let searchRatio = TunerConfig.autocorrelationSearchRatio(for: instrumentMode)
         let roughPeriod = sampleRate / roughFrequency
@@ -779,7 +866,9 @@ final class AudioAnalyzer: ObservableObject {
 
         let minLag = max(2, centerLag - searchRange)
         let maxLag = min(sampleCount - 2, centerLag + searchRange)
-        guard minLag < maxLag else { return roughFrequency }
+        guard minLag < maxLag else {
+            return (roughFrequency, 0)
+        }
 
         var correlations: [(lag: Int, value: Float)] = []
         correlations.reserveCapacity(maxLag - minLag + 1)
@@ -791,12 +880,13 @@ final class AudioAnalyzer: ObservableObject {
         guard let peakIndex = correlations.indices.max(by: { correlations[$0].value < correlations[$1].value }),
               peakIndex > 0,
               peakIndex < correlations.count - 1 else {
-            return roughFrequency
+            return (roughFrequency, 0)
         }
 
         let left = correlations[peakIndex - 1]
         let center = correlations[peakIndex]
         let right = correlations[peakIndex + 1]
+        let confidence = center.value
 
         let refinedLag = parabolicPeakLag(
             leftLag: left.lag,
@@ -807,8 +897,10 @@ final class AudioAnalyzer: ObservableObject {
             rightValue: Double(right.value)
         )
 
-        guard refinedLag > 0 else { return roughFrequency }
-        return sampleRate / refinedLag
+        guard refinedLag > 0 else {
+            return (roughFrequency, confidence)
+        }
+        return (sampleRate / refinedLag, confidence)
     }
 
     private func normalizedAutocorrelation(samples: UnsafeBufferPointer<Float>, sampleCount: Int, lag: Int) -> Float {
